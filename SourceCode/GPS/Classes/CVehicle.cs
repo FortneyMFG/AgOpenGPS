@@ -56,6 +56,10 @@ namespace AgOpenGPS
 
             VehicleConfig.Wheelbase = Properties.Settings.Default.setVehicle_wheelbase;
 
+            VehicleConfig.PivotToFrontAxle = Properties.Settings.Default.setVehicle_articPivotToFront;
+            VehicleConfig.PivotToRearAxle = Properties.Settings.Default.setVehicle_articPivotToRear;
+            VehicleConfig.AntennaPivotFromFrontAxle = Properties.Settings.Default.setVehicle_antennaPivotFromFront;
+
             slowSpeedCutoff = Properties.Settings.Default.setVehicle_slowSpeedCutoff;
 
             goalPointLookAheadHold = Properties.Settings.Default.setVehicle_goalPointLookAheadHold;
@@ -76,6 +80,40 @@ namespace AgOpenGPS
 
             purePursuitIntegralGain = Properties.Settings.Default.purePursuitIntegralGainAB;
             VehicleConfig.Type = (VehicleType)Properties.Settings.Default.setVehicle_vehicleType;
+
+            if (VehicleConfig.Type == VehicleType.Articulated)
+            {
+                if (VehicleConfig.PivotToFrontAxle <= 0 && VehicleConfig.PivotToRearAxle <= 0)
+                {
+                    double halfWheelbase = 0.5 * VehicleConfig.Wheelbase;
+                    VehicleConfig.PivotToFrontAxle = halfWheelbase;
+                    VehicleConfig.PivotToRearAxle = halfWheelbase;
+                }
+
+                VehicleConfig.Wheelbase = VehicleConfig.PivotToFrontAxle + VehicleConfig.PivotToRearAxle;
+
+                if (VehicleConfig.AntennaPivotFromFrontAxle <= 0)
+                {
+                    double inferredFrontOffset = Properties.Settings.Default.setVehicle_antennaPivot - VehicleConfig.PivotToFrontAxle;
+
+                    if (inferredFrontOffset > 0)
+                    {
+                        VehicleConfig.AntennaPivotFromFrontAxle = inferredFrontOffset;
+                    }
+                    else
+                    {
+                        VehicleConfig.AntennaPivotFromFrontAxle = 0;
+                    }
+                }
+
+                VehicleConfig.AntennaPivot = VehicleConfig.PivotToFrontAxle + VehicleConfig.AntennaPivotFromFrontAxle;
+            }
+            else
+            {
+                VehicleConfig.PivotToFrontAxle = VehicleConfig.Wheelbase;
+                VehicleConfig.PivotToRearAxle = 0;
+                VehicleConfig.AntennaPivotFromFrontAxle = 0;
+            }
 
             hydLiftLookAheadTime = Properties.Settings.Default.setVehicle_hydraulicLiftLookAhead;
 
@@ -101,6 +139,36 @@ namespace AgOpenGPS
         public double goalDistance = 0;
 
         public VehicleConfig VehicleConfig { get; }
+
+        public double PivotFrameHeading { get; private set; }
+
+        public double FrontFrameHeading { get; private set; }
+
+        public double RearFrameHeading { get; private set; }
+
+        public double ArticulationAngleRadians { get; private set; }
+
+        public double ArticulationAngleDegrees => glm.toDegrees(ArticulationAngleRadians);
+
+        public void UpdateFrameHeadings(double pivotHeading, double articulationDegrees)
+        {
+            PivotFrameHeading = NormalizeAngle(pivotHeading);
+
+            if (VehicleConfig.Type == VehicleType.Articulated)
+            {
+                ArticulationAngleRadians = glm.toRadians(articulationDegrees);
+                double halfArticulation = 0.5 * ArticulationAngleRadians;
+
+                FrontFrameHeading = NormalizeAngle(PivotFrameHeading - halfArticulation);
+                RearFrameHeading = NormalizeAngle(PivotFrameHeading + halfArticulation);
+            }
+            else
+            {
+                ArticulationAngleRadians = 0;
+                FrontFrameHeading = PivotFrameHeading;
+                RearFrameHeading = PivotFrameHeading;
+            }
+        }
 
         public double UpdateGoalPointDistance()
         {
@@ -140,14 +208,20 @@ namespace AgOpenGPS
 
         public void DrawVehicle()
         {
-            GL.Rotate(glm.toDegrees(-mf.fixHeading), 0.0, 0.0, 1.0);
+            double articulationDegrees = VehicleConfig.Type == VehicleType.Articulated
+                ? (mf.timerSim.Enabled ? mf.sim.steerAngle : mf.mc.actualSteerAngleDegrees)
+                : 0;
+
+            UpdateFrameHeadings(mf.fixHeading, articulationDegrees);
+
+            GL.Rotate(glm.toDegrees(-FrontFrameHeading), 0.0, 0.0, 1.0);
             //mf.font.DrawText3D(0, 0, "&TGF");
             if (mf.isFirstHeadingSet && !mf.tool.isToolFrontFixed)
             {
                 // Draw the rigid hitch
                 double hitchLengthFromPivot = mf.tool.GetHitchLengthFromVehiclePivot();
                 double hitchHeading = mf.tool.GetHitchHeadingFromVehiclePivot(hitchLengthFromPivot);
-                double hitchAngleOffset = hitchHeading - mf.fixHeading;
+                double hitchAngleOffset = NormalizeRelativeAngle(hitchHeading - FrontFrameHeading);
                 double sinOffset = Math.Sin(hitchAngleOffset);
                 double cosOffset = Math.Cos(hitchAngleOffset);
 
@@ -258,19 +332,32 @@ namespace AgOpenGPS
                 }
                 else if (VehicleConfig.Type == VehicleType.Articulated)
                 {
-                    double modelSteerAngle = 0.5 * (mf.timerSim.Enabled ? mf.sim.steerAngle : mf.mc.actualSteerAngleDegrees);
                     GLW.SetColor(vehicleColor);
 
                     XyDelta articulated = new XyDelta(VehicleConfig.TrackWidth, -0.65 * VehicleConfig.Wheelbase);
+                    double rearOffset = VehicleConfig.PivotToRearAxle;
+                    if (rearOffset <= 0)
+                    {
+                        rearOffset = VehicleConfig.Wheelbase * 0.5;
+                    }
+
+                    double articulationRadians = NormalizeRelativeAngle(ArticulationAngleRadians);
+                    double articulationDegreesLocal = glm.toDegrees(articulationRadians);
+
                     GL.PushMatrix();
-                    GL.Translate(0, -VehicleConfig.Wheelbase * 0.5, 0);
-                    GL.Rotate(modelSteerAngle, 0, 0, 1);
+                    GL.Rotate(articulationDegreesLocal, 0, 0, 1);
+                    GL.Translate(0, -rearOffset, 0);
                     mf.VehicleTextures.ArticulatedRear.DrawCenteredAroundOrigin(articulated);
                     GL.PopMatrix();
 
                     GL.PushMatrix();
-                    GL.Translate(0, VehicleConfig.Wheelbase * 0.5, 0);
-                    GL.Rotate(-modelSteerAngle, 0, 0, 1);
+                    double frontOffset = VehicleConfig.PivotToFrontAxle;
+                    if (frontOffset <= 0)
+                    {
+                        frontOffset = VehicleConfig.Wheelbase - rearOffset;
+                    }
+
+                    GL.Translate(0, frontOffset, 0);
                     mf.VehicleTextures.ArticulatedFront.DrawCenteredAroundOrigin(articulated);
                     GL.PopMatrix();
                 }
@@ -304,7 +391,9 @@ namespace AgOpenGPS
                 PointStyle antennaBackgroundStyle = new PointStyle(16, Colors.Black);
                 PointStyle antennaForegroundStyle = new PointStyle(10, Colors.AntennaColor);
                 PointStyle[] layerStyles = { antennaBackgroundStyle, antennaForegroundStyle };
-                GLW.DrawPointLayered(layerStyles, -VehicleConfig.AntennaOffset, VehicleConfig.AntennaPivot, 0.1);
+                double antennaPivotFromVehicleOrigin = VehicleConfig.AntennaPivot;
+
+                GLW.DrawPointLayered(layerStyles, -VehicleConfig.AntennaOffset, antennaPivotFromVehicleOrigin, 0.1);
             }
 
             if (mf.bnd.isBndBeingMade && mf.bnd.isDrawAtPivot)
@@ -368,6 +457,33 @@ namespace AgOpenGPS
             {
                 rightAckermannAngle *= 1.25;
             }
+        }
+
+        private static double NormalizeAngle(double angle)
+        {
+            double normalized = angle % glm.twoPI;
+            if (normalized < 0)
+            {
+                normalized += glm.twoPI;
+            }
+
+            return normalized;
+        }
+
+        private static double NormalizeRelativeAngle(double angle)
+        {
+            double normalized = angle % glm.twoPI;
+
+            if (normalized > Math.PI)
+            {
+                normalized -= glm.twoPI;
+            }
+            else if (normalized < -Math.PI)
+            {
+                normalized += glm.twoPI;
+            }
+
+            return normalized;
         }
 
     }

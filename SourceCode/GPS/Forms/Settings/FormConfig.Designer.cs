@@ -90,8 +90,14 @@ namespace AgOpenGPS
             this.labelHitchLength = new System.Windows.Forms.Label();
             this.labelTrack = new System.Windows.Forms.Label();
             this.labelWheelBase2 = new System.Windows.Forms.Label();
+            this.labelPivotToFront = new System.Windows.Forms.Label();
+            this.labelPivotToRear = new System.Windows.Forms.Label();
+            this.labelPivotFrontUnits = new System.Windows.Forms.Label();
+            this.labelPivotRearUnits = new System.Windows.Forms.Label();
             this.nudTractorHitchLength = new AgOpenGPS.NudlessNumericUpDown();
             this.nudVehicleTrack = new AgOpenGPS.NudlessNumericUpDown();
+            this.nudArticPivotToFront = new AgOpenGPS.NudlessNumericUpDown();
+            this.nudArticPivotToRear = new AgOpenGPS.NudlessNumericUpDown();
             this.nudWheelbase = new AgOpenGPS.NudlessNumericUpDown();
             this.pictureBox1 = new System.Windows.Forms.PictureBox();
             this.tabVGuidance = new System.Windows.Forms.TabPage();
@@ -501,6 +507,8 @@ namespace AgOpenGPS
             ((System.ComponentModel.ISupportInitialize)(this.HitchLengthBlindBox)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudTractorHitchLength)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudVehicleTrack)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.nudArticPivotToFront)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.nudArticPivotToRear)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudWheelbase)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
             this.tabTConfig.SuspendLayout();
@@ -1506,9 +1514,15 @@ namespace AgOpenGPS
             this.tabVDimensions.Controls.Add(this.label94);
             this.tabVDimensions.Controls.Add(this.labelHitchLength);
             this.tabVDimensions.Controls.Add(this.labelTrack);
+            this.tabVDimensions.Controls.Add(this.labelPivotRearUnits);
+            this.tabVDimensions.Controls.Add(this.labelPivotFrontUnits);
+            this.tabVDimensions.Controls.Add(this.labelPivotToRear);
+            this.tabVDimensions.Controls.Add(this.labelPivotToFront);
             this.tabVDimensions.Controls.Add(this.labelWheelBase2);
             this.tabVDimensions.Controls.Add(this.nudTractorHitchLength);
             this.tabVDimensions.Controls.Add(this.nudVehicleTrack);
+            this.tabVDimensions.Controls.Add(this.nudArticPivotToRear);
+            this.tabVDimensions.Controls.Add(this.nudArticPivotToFront);
             this.tabVDimensions.Controls.Add(this.nudWheelbase);
             this.tabVDimensions.Controls.Add(this.pictureBox1);
             this.tabVDimensions.Location = new System.Drawing.Point(4, 44);
@@ -1595,9 +1609,59 @@ namespace AgOpenGPS
             this.labelWheelBase2.TabIndex = 475;
             this.labelWheelBase2.Text = "Wheelbase";
             this.labelWheelBase2.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
+            //
+            // labelPivotToFront
+            //
+            this.labelPivotToFront.ForeColor = System.Drawing.SystemColors.ControlText;
+            this.labelPivotToFront.Location = new System.Drawing.Point(179, 365);
+            this.labelPivotToFront.Name = "labelPivotToFront";
+            this.labelPivotToFront.Size = new System.Drawing.Size(152, 16);
+            this.labelPivotToFront.TabIndex = 485;
+            this.labelPivotToFront.Text = "Pivot → Front Axle";
+            this.labelPivotToFront.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            this.labelPivotToFront.Visible = false;
+            //
+            // labelPivotToRear
+            //
+            this.labelPivotToRear.ForeColor = System.Drawing.SystemColors.ControlText;
+            this.labelPivotToRear.Location = new System.Drawing.Point(179, 429);
+            this.labelPivotToRear.Name = "labelPivotToRear";
+            this.labelPivotToRear.Size = new System.Drawing.Size(152, 16);
+            this.labelPivotToRear.TabIndex = 486;
+            this.labelPivotToRear.Text = "Pivot → Rear Axle";
+            this.labelPivotToRear.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            this.labelPivotToRear.Visible = false;
+            //
+            // labelPivotFrontUnits
+            //
+            this.labelPivotFrontUnits.AutoSize = true;
+            this.labelPivotFrontUnits.Font = new System.Drawing.Font("Tahoma", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.labelPivotFrontUnits.ForeColor = System.Drawing.SystemColors.ActiveCaptionText;
+            this.labelPivotFrontUnits.ImeMode = System.Windows.Forms.ImeMode.NoControl;
+            this.labelPivotFrontUnits.Location = new System.Drawing.Point(337, 409);
+            this.labelPivotFrontUnits.Name = "labelPivotFrontUnits";
+            this.labelPivotFrontUnits.Size = new System.Drawing.Size(32, 19);
+            this.labelPivotFrontUnits.TabIndex = 487;
+            this.labelPivotFrontUnits.Text = "cm";
+            this.labelPivotFrontUnits.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            this.labelPivotFrontUnits.Visible = false;
+            //
+            // labelPivotRearUnits
+            //
+            this.labelPivotRearUnits.AutoSize = true;
+            this.labelPivotRearUnits.Font = new System.Drawing.Font("Tahoma", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.labelPivotRearUnits.ForeColor = System.Drawing.SystemColors.ActiveCaptionText;
+            this.labelPivotRearUnits.ImeMode = System.Windows.Forms.ImeMode.NoControl;
+            this.labelPivotRearUnits.Location = new System.Drawing.Point(337, 473);
+            this.labelPivotRearUnits.Name = "labelPivotRearUnits";
+            this.labelPivotRearUnits.Size = new System.Drawing.Size(32, 19);
+            this.labelPivotRearUnits.TabIndex = 488;
+            this.labelPivotRearUnits.Text = "cm";
+            this.labelPivotRearUnits.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            this.labelPivotRearUnits.Visible = false;
+            //
             // nudTractorHitchLength
-            // 
+            //
             this.nudTractorHitchLength.BackColor = System.Drawing.Color.AliceBlue;
             this.nudTractorHitchLength.Font = new System.Drawing.Font("Tahoma", 27.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.nudTractorHitchLength.InterceptArrowKeys = false;
@@ -1619,9 +1683,69 @@ namespace AgOpenGPS
             0,
             0});
             this.nudTractorHitchLength.Click += new System.EventHandler(this.nudTractorHitchLength_Click);
-            // 
+            //
+            // nudArticPivotToFront
+            //
+            this.nudArticPivotToFront.BackColor = System.Drawing.Color.AliceBlue;
+            this.nudArticPivotToFront.Font = new System.Drawing.Font("Tahoma", 27.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.nudArticPivotToFront.InterceptArrowKeys = false;
+            this.nudArticPivotToFront.Location = new System.Drawing.Point(179, 397);
+            this.nudArticPivotToFront.Maximum = new decimal(new int[] {
+            1999,
+            0,
+            0,
+            0});
+            this.nudArticPivotToFront.Minimum = new decimal(new int[] {
+            0,
+            0,
+            0,
+            0});
+            this.nudArticPivotToFront.Name = "nudArticPivotToFront";
+            this.nudArticPivotToFront.ReadOnly = true;
+            this.nudArticPivotToFront.RightToLeft = System.Windows.Forms.RightToLeft.No;
+            this.nudArticPivotToFront.Size = new System.Drawing.Size(152, 52);
+            this.nudArticPivotToFront.TabIndex = 489;
+            this.nudArticPivotToFront.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            this.nudArticPivotToFront.Value = new decimal(new int[] {
+            499,
+            0,
+            0,
+            0});
+            this.nudArticPivotToFront.Visible = false;
+            this.nudArticPivotToFront.Click += new System.EventHandler(this.nudArticPivotToFront_Click);
+            //
+            // nudArticPivotToRear
+            //
+            this.nudArticPivotToRear.BackColor = System.Drawing.Color.AliceBlue;
+            this.nudArticPivotToRear.Font = new System.Drawing.Font("Tahoma", 27.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.nudArticPivotToRear.InterceptArrowKeys = false;
+            this.nudArticPivotToRear.Location = new System.Drawing.Point(179, 461);
+            this.nudArticPivotToRear.Maximum = new decimal(new int[] {
+            1999,
+            0,
+            0,
+            0});
+            this.nudArticPivotToRear.Minimum = new decimal(new int[] {
+            0,
+            0,
+            0,
+            0});
+            this.nudArticPivotToRear.Name = "nudArticPivotToRear";
+            this.nudArticPivotToRear.ReadOnly = true;
+            this.nudArticPivotToRear.RightToLeft = System.Windows.Forms.RightToLeft.No;
+            this.nudArticPivotToRear.Size = new System.Drawing.Size(152, 52);
+            this.nudArticPivotToRear.TabIndex = 490;
+            this.nudArticPivotToRear.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            this.nudArticPivotToRear.Value = new decimal(new int[] {
+            499,
+            0,
+            0,
+            0});
+            this.nudArticPivotToRear.Visible = false;
+            this.nudArticPivotToRear.Click += new System.EventHandler(this.nudArticPivotToRear_Click);
+            //
             // nudVehicleTrack
-            // 
+            //
             this.nudVehicleTrack.BackColor = System.Drawing.Color.AliceBlue;
             this.nudVehicleTrack.Font = new System.Drawing.Font("Tahoma", 27.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.nudVehicleTrack.InterceptArrowKeys = false;
@@ -8640,6 +8764,8 @@ namespace AgOpenGPS
             ((System.ComponentModel.ISupportInitialize)(this.HitchLengthBlindBox)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudTractorHitchLength)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudVehicleTrack)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.nudArticPivotToFront)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.nudArticPivotToRear)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudWheelbase)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).EndInit();
             this.tabTConfig.ResumeLayout(false);
@@ -8858,6 +8984,12 @@ namespace AgOpenGPS
         private System.Windows.Forms.Label lblRollZeroOffset;
         private System.Windows.Forms.Button btnResetIMU;
         private NudlessNumericUpDown nudWheelbase;
+        private NudlessNumericUpDown nudArticPivotToFront;
+        private NudlessNumericUpDown nudArticPivotToRear;
+        private System.Windows.Forms.Label labelPivotToFront;
+        private System.Windows.Forms.Label labelPivotToRear;
+        private System.Windows.Forms.Label labelPivotFrontUnits;
+        private System.Windows.Forms.Label labelPivotRearUnits;
         private System.Windows.Forms.PictureBox pictureBox1;
         private System.Windows.Forms.Button btnUTurn;
         private System.Windows.Forms.Button btnArduino;
