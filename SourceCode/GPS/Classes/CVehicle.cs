@@ -150,23 +150,23 @@ namespace AgOpenGPS
 
         public double ArticulationAngleDegrees => glm.toDegrees(ArticulationAngleRadians);
 
-        public void UpdateFrameHeadings(double pivotHeading, double articulationDegrees)
+        public void UpdateFrameHeadings(double frontHeading, double articulationDegrees)
         {
-            PivotFrameHeading = NormalizeAngle(pivotHeading);
+            FrontFrameHeading = NormalizeAngle(frontHeading);
 
             if (VehicleConfig.Type == VehicleType.Articulated)
             {
                 ArticulationAngleRadians = glm.toRadians(articulationDegrees);
                 double halfArticulation = 0.5 * ArticulationAngleRadians;
 
-                FrontFrameHeading = NormalizeAngle(PivotFrameHeading - halfArticulation);
-                RearFrameHeading = NormalizeAngle(PivotFrameHeading + halfArticulation);
+                PivotFrameHeading = NormalizeAngle(FrontFrameHeading + halfArticulation);
+                RearFrameHeading = NormalizeAngle(FrontFrameHeading + ArticulationAngleRadians);
             }
             else
             {
                 ArticulationAngleRadians = 0;
-                FrontFrameHeading = PivotFrameHeading;
-                RearFrameHeading = PivotFrameHeading;
+                PivotFrameHeading = FrontFrameHeading;
+                RearFrameHeading = FrontFrameHeading;
             }
         }
 
