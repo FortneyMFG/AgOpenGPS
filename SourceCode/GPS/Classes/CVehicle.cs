@@ -56,6 +56,10 @@ namespace AgOpenGPS
 
             VehicleConfig.Wheelbase = Properties.Settings.Default.setVehicle_wheelbase;
 
+            VehicleConfig.PivotToFrontAxle = Properties.Settings.Default.setVehicle_articPivotToFront;
+            VehicleConfig.PivotToRearAxle = Properties.Settings.Default.setVehicle_articPivotToRear;
+            VehicleConfig.AntennaPivotFromFrontAxle = Properties.Settings.Default.setVehicle_antennaPivotFromFront;
+
             slowSpeedCutoff = Properties.Settings.Default.setVehicle_slowSpeedCutoff;
 
             goalPointLookAheadHold = Properties.Settings.Default.setVehicle_goalPointLookAheadHold;
@@ -76,6 +80,40 @@ namespace AgOpenGPS
 
             purePursuitIntegralGain = Properties.Settings.Default.purePursuitIntegralGainAB;
             VehicleConfig.Type = (VehicleType)Properties.Settings.Default.setVehicle_vehicleType;
+
+            if (VehicleConfig.Type == VehicleType.Articulated)
+            {
+                if (VehicleConfig.PivotToFrontAxle <= 0 && VehicleConfig.PivotToRearAxle <= 0)
+                {
+                    double halfWheelbase = 0.5 * VehicleConfig.Wheelbase;
+                    VehicleConfig.PivotToFrontAxle = halfWheelbase;
+                    VehicleConfig.PivotToRearAxle = halfWheelbase;
+                }
+
+                VehicleConfig.Wheelbase = VehicleConfig.PivotToFrontAxle + VehicleConfig.PivotToRearAxle;
+
+                if (VehicleConfig.AntennaPivotFromFrontAxle <= 0)
+                {
+                    double inferredFrontOffset = Properties.Settings.Default.setVehicle_antennaPivot - VehicleConfig.PivotToFrontAxle;
+
+                    if (inferredFrontOffset > 0)
+                    {
+                        VehicleConfig.AntennaPivotFromFrontAxle = inferredFrontOffset;
+                    }
+                    else
+                    {
+                        VehicleConfig.AntennaPivotFromFrontAxle = 0;
+                    }
+                }
+
+                VehicleConfig.AntennaPivot = VehicleConfig.PivotToFrontAxle + VehicleConfig.AntennaPivotFromFrontAxle;
+            }
+            else
+            {
+                VehicleConfig.PivotToFrontAxle = VehicleConfig.Wheelbase;
+                VehicleConfig.PivotToRearAxle = 0;
+                VehicleConfig.AntennaPivotFromFrontAxle = 0;
+            }
 
             hydLiftLookAheadTime = Properties.Settings.Default.setVehicle_hydraulicLiftLookAhead;
 
@@ -263,13 +301,25 @@ namespace AgOpenGPS
 
                     XyDelta articulated = new XyDelta(VehicleConfig.TrackWidth, -0.65 * VehicleConfig.Wheelbase);
                     GL.PushMatrix();
-                    GL.Translate(0, -VehicleConfig.Wheelbase * 0.5, 0);
+                    double rearOffset = VehicleConfig.PivotToRearAxle;
+                    if (rearOffset <= 0)
+                    {
+                        rearOffset = VehicleConfig.Wheelbase * 0.5;
+                    }
+
+                    GL.Translate(0, -rearOffset, 0);
                     GL.Rotate(modelSteerAngle, 0, 0, 1);
                     mf.VehicleTextures.ArticulatedRear.DrawCenteredAroundOrigin(articulated);
                     GL.PopMatrix();
 
                     GL.PushMatrix();
-                    GL.Translate(0, VehicleConfig.Wheelbase * 0.5, 0);
+                    double frontOffset = VehicleConfig.PivotToFrontAxle;
+                    if (frontOffset <= 0)
+                    {
+                        frontOffset = VehicleConfig.Wheelbase - rearOffset;
+                    }
+
+                    GL.Translate(0, frontOffset, 0);
                     GL.Rotate(-modelSteerAngle, 0, 0, 1);
                     mf.VehicleTextures.ArticulatedFront.DrawCenteredAroundOrigin(articulated);
                     GL.PopMatrix();
@@ -304,7 +354,9 @@ namespace AgOpenGPS
                 PointStyle antennaBackgroundStyle = new PointStyle(16, Colors.Black);
                 PointStyle antennaForegroundStyle = new PointStyle(10, Colors.AntennaColor);
                 PointStyle[] layerStyles = { antennaBackgroundStyle, antennaForegroundStyle };
-                GLW.DrawPointLayered(layerStyles, -VehicleConfig.AntennaOffset, VehicleConfig.AntennaPivot, 0.1);
+                double antennaPivotFromVehicleOrigin = VehicleConfig.AntennaPivot;
+
+                GLW.DrawPointLayered(layerStyles, -VehicleConfig.AntennaOffset, antennaPivotFromVehicleOrigin, 0.1);
             }
 
             if (mf.bnd.isBndBeingMade && mf.bnd.isDrawAtPivot)

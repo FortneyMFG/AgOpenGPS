@@ -126,13 +126,19 @@ namespace AgOpenGPS
         {
             double pivotToHitch = hitchLength;
 
-            if (mf.vehicle.VehicleConfig.Type == VehicleType.Articulated && !glm.IsZero(pivotToHitch))
+            if (mf.vehicle.VehicleConfig.Type == VehicleType.Articulated)
             {
-                double halfWheelbase = 0.5 * mf.vehicle.VehicleConfig.Wheelbase;
+                double pivotToFront = mf.vehicle.VehicleConfig.PivotToFrontAxle;
+                double pivotToRear = mf.vehicle.VehicleConfig.PivotToRearAxle;
+                double hitchMagnitude = Math.Abs(pivotToHitch);
 
-                if (!glm.IsZero(halfWheelbase))
+                if (pivotToHitch >= 0)
                 {
-                    pivotToHitch += Math.Sign(pivotToHitch) * halfWheelbase;
+                    pivotToHitch = pivotToFront + hitchMagnitude;
+                }
+                else
+                {
+                    pivotToHitch = -(pivotToRear + hitchMagnitude);
                 }
             }
 
@@ -143,24 +149,20 @@ namespace AgOpenGPS
         {
             double hitchHeading = mf.fixHeading;
 
-            if (mf.vehicle.VehicleConfig.Type == VehicleType.Articulated && !glm.IsZero(pivotToHitchLength))
+            if (mf.vehicle.VehicleConfig.Type == VehicleType.Articulated)
             {
                 double steerAngleDegrees = mf.timerSim.Enabled ? mf.sim.steerAngle : mf.mc.actualSteerAngleDegrees;
-                double articulationRadians = glm.toRadians(steerAngleDegrees);
+                double halfArticulationRadians = 0.5 * glm.toRadians(steerAngleDegrees);
 
-                // The hitch translation already starts from the averaged vehicle heading
-                // (fixHeading). Applying the full rear-frame deflection on top of that
-                // over-rotates the hitch, so scale the articulation once more to keep the
-                // lateral movement aligned with the rear frame.
-                double rearHeadingOffset = 0.25 * articulationRadians;
-
-                if (pivotToHitchLength > 0)
+                if (pivotToHitchLength >= 0)
                 {
-                    hitchHeading += rearHeadingOffset;
+                    // Front mounted tools follow the front frame heading.
+                    hitchHeading -= halfArticulationRadians;
                 }
                 else
                 {
-                    hitchHeading -= rearHeadingOffset;
+                    // Rear mounted tools follow the rear frame heading.
+                    hitchHeading += halfArticulationRadians;
                 }
 
                 hitchHeading = NormalizeAngle(hitchHeading);

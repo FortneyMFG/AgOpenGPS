@@ -75,7 +75,23 @@ namespace AgOpenGPS
         {
             nudAntennaHeight.Value = (int)(Properties.Settings.Default.setVehicle_antennaHeight * mf.m2InchOrCm);
 
-            nudAntennaPivot.Value = (int)((Properties.Settings.Default.setVehicle_antennaPivot) * mf.m2InchOrCm);
+            double antennaPivotSetting = Properties.Settings.Default.setVehicle_antennaPivot;
+
+            if (mf.vehicle.VehicleConfig.Type == VehicleType.Articulated)
+            {
+                double pivotToFront = Math.Max(0, Properties.Settings.Default.setVehicle_articPivotToFront);
+                double frontOffset = Properties.Settings.Default.setVehicle_antennaPivotFromFront;
+
+                if (frontOffset <= 0)
+                {
+                    frontOffset = Math.Max(0, antennaPivotSetting - pivotToFront);
+                    Properties.Settings.Default.setVehicle_antennaPivotFromFront = frontOffset;
+                }
+
+                antennaPivotSetting = frontOffset;
+            }
+
+            nudAntennaPivot.Value = (int)(antennaPivotSetting * mf.m2InchOrCm);
 
             //negative is to the right
             nudAntennaOffset.Value = (int)(Math.Abs(Properties.Settings.Default.setVehicle_antennaOffset) * mf.m2InchOrCm);
@@ -156,8 +172,22 @@ namespace AgOpenGPS
         {
             if (((NudlessNumericUpDown)sender).ShowKeypad(this))
             {
-                Properties.Settings.Default.setVehicle_antennaPivot = (double)nudAntennaPivot.Value * mf.inchOrCm2m;
-                mf.vehicle.VehicleConfig.AntennaPivot = Properties.Settings.Default.setVehicle_antennaPivot;
+                double antennaValue = (double)nudAntennaPivot.Value * mf.inchOrCm2m;
+
+                if (mf.vehicle.VehicleConfig.Type == VehicleType.Articulated)
+                {
+                    Properties.Settings.Default.setVehicle_antennaPivotFromFront = antennaValue;
+                    double pivotToFront = Math.Max(0, Properties.Settings.Default.setVehicle_articPivotToFront);
+                    double pivotDistance = pivotToFront + antennaValue;
+                    Properties.Settings.Default.setVehicle_antennaPivot = pivotDistance;
+                    mf.vehicle.VehicleConfig.AntennaPivotFromFrontAxle = antennaValue;
+                    mf.vehicle.VehicleConfig.AntennaPivot = pivotDistance;
+                }
+                else
+                {
+                    Properties.Settings.Default.setVehicle_antennaPivot = antennaValue;
+                    mf.vehicle.VehicleConfig.AntennaPivot = antennaValue;
+                }
             }
         }
 
@@ -176,11 +206,14 @@ namespace AgOpenGPS
 
         private void tabVDimensions_Enter(object sender, EventArgs e)
         {
-            nudWheelbase.Value = (int)(Math.Abs(Properties.Settings.Default.setVehicle_wheelbase) * mf.m2InchOrCm);
+            double storedWheelbase = Math.Abs(Properties.Settings.Default.setVehicle_wheelbase);
+            nudWheelbase.Value = (int)(storedWheelbase * mf.m2InchOrCm);
 
             nudVehicleTrack.Value = (int)(Math.Abs(Properties.Settings.Default.setVehicle_trackWidth) * mf.m2InchOrCm);
 
             nudTractorHitchLength.Value = (int)(Math.Abs(Properties.Settings.Default.setVehicle_hitchLength) * mf.m2InchOrCm);
+
+            bool isArticulated = mf.vehicle.VehicleConfig.Type == VehicleType.Articulated;
 
             if (mf.vehicle.VehicleConfig.Type == VehicleType.Tractor)
             {
@@ -190,7 +223,7 @@ namespace AgOpenGPS
             {
                 pictureBox1.Image = Properties.Resources.RadiusWheelBaseHarvester;
             }
-            else if (mf.vehicle.VehicleConfig.Type == VehicleType.Articulated)
+            else if (isArticulated)
             {
                 pictureBox1.Image = Properties.Resources.RadiusWheelBaseArticulated;
             }
@@ -200,9 +233,52 @@ namespace AgOpenGPS
             labelHitchLength.Visible = rbtnTBT.Checked || rbtnTrailing.Checked;
             HitchLengthBlindBox.Visible = rbtnFixedRear.Checked || rbtnFront.Checked;
 
+            double pivotToFront = Math.Abs(Properties.Settings.Default.setVehicle_articPivotToFront);
+            double pivotToRear = Math.Abs(Properties.Settings.Default.setVehicle_articPivotToRear);
+
+            if (isArticulated && pivotToFront <= 0 && pivotToRear <= 0)
+            {
+                double halfWheelbase = storedWheelbase * 0.5;
+                pivotToFront = halfWheelbase;
+                pivotToRear = halfWheelbase;
+                Properties.Settings.Default.setVehicle_articPivotToFront = pivotToFront;
+                Properties.Settings.Default.setVehicle_articPivotToRear = pivotToRear;
+                Properties.Settings.Default.setVehicle_wheelbase = pivotToFront + pivotToRear;
+                mf.vehicle.VehicleConfig.PivotToFrontAxle = pivotToFront;
+                mf.vehicle.VehicleConfig.PivotToRearAxle = pivotToRear;
+                mf.vehicle.VehicleConfig.Wheelbase = pivotToFront + pivotToRear;
+            }
+
+            double articulatedWheelbase = pivotToFront + pivotToRear;
+
+            if (isArticulated)
+            {
+                Properties.Settings.Default.setVehicle_wheelbase = articulatedWheelbase;
+                mf.vehicle.VehicleConfig.PivotToFrontAxle = pivotToFront;
+                mf.vehicle.VehicleConfig.PivotToRearAxle = pivotToRear;
+                mf.vehicle.VehicleConfig.Wheelbase = articulatedWheelbase;
+            }
+
+            nudArticPivotToFront.Value = (int)(pivotToFront * mf.m2InchOrCm);
+            nudArticPivotToRear.Value = (int)(pivotToRear * mf.m2InchOrCm);
+
+            nudArticPivotToFront.Visible = isArticulated;
+            labelPivotToFront.Visible = isArticulated;
+            labelPivotFrontUnits.Visible = isArticulated;
+
+            nudArticPivotToRear.Visible = isArticulated;
+            labelPivotToRear.Visible = isArticulated;
+            labelPivotRearUnits.Visible = isArticulated;
+
+            nudWheelbase.Visible = !isArticulated;
+            labelWheelBase2.Visible = !isArticulated;
+            label97.Visible = !isArticulated;
+
             label94.Text = mf.unitsInCm;
             label95.Text = mf.unitsInCm;
             label97.Text = mf.unitsInCm;
+            labelPivotFrontUnits.Text = mf.unitsInCm;
+            labelPivotRearUnits.Text = mf.unitsInCm;
         }
 
         private void nudTractorHitchLength_Click(object sender, EventArgs e)
@@ -226,6 +302,51 @@ namespace AgOpenGPS
                 mf.vehicle.VehicleConfig.Wheelbase = Properties.Settings.Default.setVehicle_wheelbase;
                 Properties.Settings.Default.Save();
             }
+        }
+
+        private void nudArticPivotToFront_Click(object sender, EventArgs e)
+        {
+            if (((NudlessNumericUpDown)sender).ShowKeypad(this))
+            {
+                Properties.Settings.Default.setVehicle_articPivotToFront = (double)nudArticPivotToFront.Value * mf.inchOrCm2m;
+                UpdateArticulatedWheelbaseSettings();
+            }
+        }
+
+        private void nudArticPivotToRear_Click(object sender, EventArgs e)
+        {
+            if (((NudlessNumericUpDown)sender).ShowKeypad(this))
+            {
+                Properties.Settings.Default.setVehicle_articPivotToRear = (double)nudArticPivotToRear.Value * mf.inchOrCm2m;
+                UpdateArticulatedWheelbaseSettings();
+            }
+        }
+
+        private void UpdateArticulatedWheelbaseSettings()
+        {
+            double pivotToFront = Math.Max(0, Properties.Settings.Default.setVehicle_articPivotToFront);
+            double pivotToRear = Math.Max(0, Properties.Settings.Default.setVehicle_articPivotToRear);
+            double wheelbase = pivotToFront + pivotToRear;
+
+            Properties.Settings.Default.setVehicle_wheelbase = wheelbase;
+            mf.vehicle.VehicleConfig.PivotToFrontAxle = pivotToFront;
+            mf.vehicle.VehicleConfig.PivotToRearAxle = pivotToRear;
+            mf.vehicle.VehicleConfig.Wheelbase = wheelbase;
+
+            double antennaFront = Properties.Settings.Default.setVehicle_antennaPivotFromFront;
+
+            if (antennaFront <= 0)
+            {
+                double storedPivot = Properties.Settings.Default.setVehicle_antennaPivot;
+                antennaFront = Math.Max(0, storedPivot - pivotToFront);
+            }
+
+            mf.vehicle.VehicleConfig.AntennaPivotFromFrontAxle = antennaFront;
+            mf.vehicle.VehicleConfig.AntennaPivot = pivotToFront + antennaFront;
+            Properties.Settings.Default.setVehicle_antennaPivotFromFront = antennaFront;
+            Properties.Settings.Default.setVehicle_antennaPivot = mf.vehicle.VehicleConfig.AntennaPivot;
+
+            Properties.Settings.Default.Save();
         }
 
         private void nudVehicleTrack_Click(object sender, EventArgs e)
