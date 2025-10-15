@@ -196,10 +196,9 @@ namespace AgOpenGPS
             //translate down to the hitch pin
             double pivotToHitchLength = GetHitchLengthFromVehiclePivot();
             double hitchHeading = GetHitchHeadingFromVehiclePivot(pivotToHitchLength);
-            double hitchDistance = Math.Abs(pivotToHitchLength);
             GL.Translate(
-                Math.Sin(hitchHeading) * hitchDistance,
-                Math.Cos(hitchHeading) * hitchDistance,
+                Math.Sin(hitchHeading) * pivotToHitchLength,
+                Math.Cos(hitchHeading) * pivotToHitchLength,
                 0);
 
             //settings doesn't change trailing hitch length if set to rigid, so do it here
