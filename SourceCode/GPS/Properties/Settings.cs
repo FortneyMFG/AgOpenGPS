@@ -144,6 +144,9 @@ namespace AgOpenGPS.Properties
         public bool setTool_isToolRearFixed = false;
         public double setVehicle_antennaPivot = 0.1;
         public double setVehicle_wheelbase = 3.3;
+        public double setVehicle_articPivotToFront = 1.65;
+        public double setVehicle_articPivotToRear = 1.65;
+        public double setVehicle_antennaPivotFromFront = 0.0;
         public double setVehicle_hitchLength = -1;
         public double setVehicle_toolLookAheadOff = 0.5;
         public double setVehicle_slowSpeedCutoff = 0.5;

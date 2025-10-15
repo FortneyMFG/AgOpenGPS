@@ -21,5 +21,9 @@
 
         public double Wheelbase { get; set; }
         public double TrackWidth { get; set; }
+
+        public double PivotToFrontAxle { get; set; }
+        public double PivotToRearAxle { get; set; }
+        public double AntennaPivotFromFrontAxle { get; set; }
     }
 }
