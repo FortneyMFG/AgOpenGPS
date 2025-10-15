@@ -140,6 +140,36 @@ namespace AgOpenGPS
 
         public VehicleConfig VehicleConfig { get; }
 
+        public double PivotFrameHeading { get; private set; }
+
+        public double FrontFrameHeading { get; private set; }
+
+        public double RearFrameHeading { get; private set; }
+
+        public double ArticulationAngleRadians { get; private set; }
+
+        public double ArticulationAngleDegrees => glm.toDegrees(ArticulationAngleRadians);
+
+        public void UpdateFrameHeadings(double pivotHeading, double articulationDegrees)
+        {
+            PivotFrameHeading = NormalizeAngle(pivotHeading);
+
+            if (VehicleConfig.Type == VehicleType.Articulated)
+            {
+                ArticulationAngleRadians = glm.toRadians(articulationDegrees);
+                double halfArticulation = 0.5 * ArticulationAngleRadians;
+
+                FrontFrameHeading = NormalizeAngle(PivotFrameHeading - halfArticulation);
+                RearFrameHeading = NormalizeAngle(PivotFrameHeading + halfArticulation);
+            }
+            else
+            {
+                ArticulationAngleRadians = 0;
+                FrontFrameHeading = PivotFrameHeading;
+                RearFrameHeading = PivotFrameHeading;
+            }
+        }
+
         public double UpdateGoalPointDistance()
         {
             double xTE = Math.Abs(modeActualXTE);
@@ -178,14 +208,20 @@ namespace AgOpenGPS
 
         public void DrawVehicle()
         {
-            GL.Rotate(glm.toDegrees(-mf.fixHeading), 0.0, 0.0, 1.0);
+            double articulationDegrees = VehicleConfig.Type == VehicleType.Articulated
+                ? (mf.timerSim.Enabled ? mf.sim.steerAngle : mf.mc.actualSteerAngleDegrees)
+                : 0;
+
+            UpdateFrameHeadings(mf.fixHeading, articulationDegrees);
+
+            GL.Rotate(glm.toDegrees(-FrontFrameHeading), 0.0, 0.0, 1.0);
             //mf.font.DrawText3D(0, 0, "&TGF");
             if (mf.isFirstHeadingSet && !mf.tool.isToolFrontFixed)
             {
                 // Draw the rigid hitch
                 double hitchLengthFromPivot = mf.tool.GetHitchLengthFromVehiclePivot();
                 double hitchHeading = mf.tool.GetHitchHeadingFromVehiclePivot(hitchLengthFromPivot);
-                double hitchAngleOffset = hitchHeading - mf.fixHeading;
+                double hitchAngleOffset = NormalizeRelativeAngle(hitchHeading - FrontFrameHeading);
                 double sinOffset = Math.Sin(hitchAngleOffset);
                 double cosOffset = Math.Cos(hitchAngleOffset);
 
@@ -296,19 +332,21 @@ namespace AgOpenGPS
                 }
                 else if (VehicleConfig.Type == VehicleType.Articulated)
                 {
-                    double modelSteerAngle = 0.5 * (mf.timerSim.Enabled ? mf.sim.steerAngle : mf.mc.actualSteerAngleDegrees);
                     GLW.SetColor(vehicleColor);
 
                     XyDelta articulated = new XyDelta(VehicleConfig.TrackWidth, -0.65 * VehicleConfig.Wheelbase);
-                    GL.PushMatrix();
                     double rearOffset = VehicleConfig.PivotToRearAxle;
                     if (rearOffset <= 0)
                     {
                         rearOffset = VehicleConfig.Wheelbase * 0.5;
                     }
 
+                    double articulationRadians = NormalizeRelativeAngle(ArticulationAngleRadians);
+                    double articulationDegreesLocal = glm.toDegrees(articulationRadians);
+
+                    GL.PushMatrix();
+                    GL.Rotate(articulationDegreesLocal, 0, 0, 1);
                     GL.Translate(0, -rearOffset, 0);
-                    GL.Rotate(modelSteerAngle, 0, 0, 1);
                     mf.VehicleTextures.ArticulatedRear.DrawCenteredAroundOrigin(articulated);
                     GL.PopMatrix();
 
@@ -320,7 +358,6 @@ namespace AgOpenGPS
                     }
 
                     GL.Translate(0, frontOffset, 0);
-                    GL.Rotate(-modelSteerAngle, 0, 0, 1);
                     mf.VehicleTextures.ArticulatedFront.DrawCenteredAroundOrigin(articulated);
                     GL.PopMatrix();
                 }
@@ -420,6 +457,33 @@ namespace AgOpenGPS
             {
                 rightAckermannAngle *= 1.25;
             }
+        }
+
+        private static double NormalizeAngle(double angle)
+        {
+            double normalized = angle % glm.twoPI;
+            if (normalized < 0)
+            {
+                normalized += glm.twoPI;
+            }
+
+            return normalized;
+        }
+
+        private static double NormalizeRelativeAngle(double angle)
+        {
+            double normalized = angle % glm.twoPI;
+
+            if (normalized > Math.PI)
+            {
+                normalized -= glm.twoPI;
+            }
+            else if (normalized < -Math.PI)
+            {
+                normalized += glm.twoPI;
+            }
+
+            return normalized;
         }
 
     }

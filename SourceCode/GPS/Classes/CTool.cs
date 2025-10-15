@@ -147,42 +147,18 @@ namespace AgOpenGPS
 
         public double GetHitchHeadingFromVehiclePivot(double pivotToHitchLength)
         {
-            double hitchHeading = mf.fixHeading;
+            double articulationDegrees = mf.vehicle.VehicleConfig.Type == VehicleType.Articulated
+                ? (mf.timerSim.Enabled ? mf.sim.steerAngle : mf.mc.actualSteerAngleDegrees)
+                : 0;
 
-            if (mf.vehicle.VehicleConfig.Type == VehicleType.Articulated)
+            mf.vehicle.UpdateFrameHeadings(mf.fixHeading, articulationDegrees);
+
+            if (mf.vehicle.VehicleConfig.Type == VehicleType.Articulated && pivotToHitchLength < 0)
             {
-                double steerAngleDegrees = mf.timerSim.Enabled ? mf.sim.steerAngle : mf.mc.actualSteerAngleDegrees;
-                double halfArticulationRadians = 0.5 * glm.toRadians(steerAngleDegrees);
-
-                if (pivotToHitchLength >= 0)
-                {
-                    // Front mounted tools follow the front frame heading.
-                    hitchHeading -= halfArticulationRadians;
-                }
-                else
-                {
-                    // Rear mounted tools follow the rear frame heading.
-                    hitchHeading += halfArticulationRadians;
-                }
-
-                hitchHeading = NormalizeAngle(hitchHeading);
+                return mf.vehicle.RearFrameHeading;
             }
 
-            return hitchHeading;
-        }
-
-        private static double NormalizeAngle(double angle)
-        {
-            if (angle < 0)
-            {
-                angle = (angle % glm.twoPI) + glm.twoPI;
-            }
-            else if (angle >= glm.twoPI)
-            {
-                angle %= glm.twoPI;
-            }
-
-            return angle;
+            return mf.vehicle.FrontFrameHeading;
         }
 
         private void DrawHitch(double trailingTank)
@@ -220,9 +196,10 @@ namespace AgOpenGPS
             //translate down to the hitch pin
             double pivotToHitchLength = GetHitchLengthFromVehiclePivot();
             double hitchHeading = GetHitchHeadingFromVehiclePivot(pivotToHitchLength);
+            double hitchDistance = Math.Abs(pivotToHitchLength);
             GL.Translate(
-                Math.Sin(hitchHeading) * pivotToHitchLength,
-                Math.Cos(hitchHeading) * pivotToHitchLength,
+                Math.Sin(hitchHeading) * hitchDistance,
+                Math.Cos(hitchHeading) * hitchDistance,
                 0);
 
             //settings doesn't change trailing hitch length if set to rigid, so do it here
