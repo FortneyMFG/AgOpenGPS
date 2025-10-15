@@ -105,7 +105,7 @@ namespace AgOpenGPS
                     GL.LoadIdentity();
 
                     //position the camera
-                    camera.SetLookAt(pivotAxlePos.easting, pivotAxlePos.northing, camHeading);
+                    camera.SetLookAt(pn.fix.easting, pn.fix.northing, camHeading);
 
                     //the bounding box of the camera for cullling.
                     CalcFrustum();
