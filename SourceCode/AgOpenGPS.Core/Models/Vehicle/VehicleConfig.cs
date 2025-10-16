@@ -21,5 +21,7 @@
 
         public double Wheelbase { get; set; }
         public double TrackWidth { get; set; }
+
+        public bool UseArticulatedFrameModel { get; set; }
     }
 }

@@ -160,6 +160,7 @@ namespace AgOpenGPS.Properties
         public bool setVehicle_isStanleyUsed = false;
         public bool setTool_isToolTBT = false;
         public int setVehicle_vehicleType = 0;
+        public bool setVehicle_useArticulatedFrameModel = false;
         public int set_youSkipWidth = 1;
         public byte setArdSteer_setting1 = 0;
         public byte setArdSteer_setting0 = 56;
