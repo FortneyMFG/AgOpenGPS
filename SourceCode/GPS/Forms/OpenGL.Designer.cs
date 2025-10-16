@@ -472,6 +472,16 @@ namespace AgOpenGPS
                         if (isLightbarOn) DrawSteerBarText();
                     }
 
+                    if (VehiclePoseDebugLines.Count > 0)
+                    {
+                        int debugLineIndex = 0;
+                        foreach (string line in VehiclePoseDebugLines)
+                        {
+                            font.DrawText(-(oglMain.Width / 2) + 20, 40 + debugLineIndex * 18, line, 0.8);
+                            debugLineIndex++;
+                        }
+                    }
+
                     if (trk.idx > -1 && !ct.isContourBtnOn) DrawTrackInfo();
 
 

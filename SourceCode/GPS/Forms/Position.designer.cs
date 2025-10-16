@@ -42,6 +42,11 @@ namespace AgOpenGPS
         public vec3 tankPos = new vec3(0, 0, 0);
         public vec2 hitchPos = new vec2(0, 0);
 
+        public VehiclePoseSnapshot VehiclePose { get; private set; } = VehiclePoseSnapshot.Identity;
+        public double CurrentArticulationAngle { get; private set; }
+        public IReadOnlyList<string> VehiclePoseDebugLines { get; private set; } = Array.Empty<string>();
+        private DateTime _lastPoseDebugLog = DateTime.MinValue;
+
         //history
         public vec2 prevFix = new vec2(0, 0);
         public vec2 prevJumpFix = new vec2(0, 0);
@@ -280,7 +285,7 @@ namespace AgOpenGPS
                                     if (imuCorrected >= glm.twoPI) imuCorrected -= glm.twoPI;
                                     else if (imuCorrected < 0) imuCorrected += glm.twoPI;
 
-                                    fixHeading = imuCorrected;
+                                    fixHeading = ConvertImuHeadingToPivot(imuCorrected);
                                 }
 
                                 //set the camera 
@@ -472,7 +477,7 @@ namespace AgOpenGPS
                             else if (imuCorrected < 0) imuCorrected += glm.twoPI;
 
                             //use imu as heading when going slow
-                            fixHeading = imuCorrected;
+                            fixHeading = ConvertImuHeadingToPivot(imuCorrected);
 
                             #endregion
                         }
@@ -575,7 +580,7 @@ namespace AgOpenGPS
                             else if (imuCorrected < 0) imuCorrected += glm.twoPI;
 
                             //use imu as heading when going slow
-                            fixHeading = imuCorrected;
+                            fixHeading = ConvertImuHeadingToPivot(imuCorrected);
                         }
 
                         camDelta = fixHeading - smoothCamHeading;
@@ -670,7 +675,7 @@ namespace AgOpenGPS
                             if (imuCorrected > glm.twoPI) imuCorrected -= glm.twoPI;
                             if (imuCorrected < 0) imuCorrected += glm.twoPI;
 
-                            fixHeading = imuCorrected;
+                            fixHeading = ConvertImuHeadingToPivot(imuCorrected);
 
                             camHeading = fixHeading;
                             if (camHeading > glm.twoPI) camHeading -= glm.twoPI;
@@ -1278,44 +1283,74 @@ namespace AgOpenGPS
         //all the hitch, pivot, section, trailing hitch, headings and fixes
         private void CalculatePositionHeading()
         {
-            #region pivot hitch trail
+        #region pivot hitch trail
 
-            //translate from pivot position to steer axle and pivot axle position
-            //translate world to the pivot axle
-            pivotAxlePos.easting = pn.fix.easting - (Math.Sin(fixHeading) * vehicle.VehicleConfig.AntennaPivot);
-            pivotAxlePos.northing = pn.fix.northing - (Math.Cos(fixHeading) * vehicle.VehicleConfig.AntennaPivot);
-            pivotAxlePos.heading = fixHeading;
+            bool articulationModelEnabled = vehicle.VehicleConfig.UseArticulatedFrameModel && vehicle.VehicleConfig.Type == VehicleType.Articulated;
+            double articulationAngle = articulationModelEnabled ? GetArticulationAngleRadians() : 0.0;
+            CurrentArticulationAngle = articulationAngle;
 
-            steerAxlePos.easting = pivotAxlePos.easting + (Math.Sin(fixHeading) * vehicle.VehicleConfig.Wheelbase);
-            steerAxlePos.northing = pivotAxlePos.northing + (Math.Cos(fixHeading) * vehicle.VehicleConfig.Wheelbase);
-            steerAxlePos.heading = fixHeading;
+            VehiclePose = VehiclePoseCalculator.Compute(
+                articulationModelEnabled,
+                fixHeading,
+                CurrentArticulationAngle,
+                new XyCoord(pn.fix.easting, pn.fix.northing),
+                vehicle.VehicleConfig.Wheelbase,
+                vehicle.VehicleConfig.AntennaPivot,
+                vehicle.VehicleConfig.AntennaOffset,
+                tool.hitchLength);
 
-            //guidance look ahead distance based on time or tool width at least 
-            
-            double guidanceLookDist = (Math.Max(tool.width * 0.5, avgSpeed * 0.277777 * guidanceLookAheadTime));
-            guidanceLookPos.easting = pivotAxlePos.easting + (Math.Sin(fixHeading) * guidanceLookDist);
-            guidanceLookPos.northing = pivotAxlePos.northing + (Math.Cos(fixHeading) * guidanceLookDist);
-            
+            pivotAxlePos.easting = VehiclePose.PivotPose.X;
+            pivotAxlePos.northing = VehiclePose.PivotPose.Y;
+            pivotAxlePos.heading = VehiclePose.PivotPose.Yaw;
 
-            //determine where the rigid vehicle hitch ends
-            hitchPos.easting = pn.fix.easting + (Math.Sin(fixHeading) * (tool.hitchLength - vehicle.VehicleConfig.AntennaPivot));
-            hitchPos.northing = pn.fix.northing + (Math.Cos(fixHeading) * (tool.hitchLength - vehicle.VehicleConfig.AntennaPivot));
+            steerAxlePos.easting = VehiclePose.FrontPose.X;
+            steerAxlePos.northing = VehiclePose.FrontPose.Y;
+            steerAxlePos.heading = VehiclePose.IsArticulationModelEnabled ? VehiclePose.FrontPose.Yaw : VehiclePose.PivotPose.Yaw;
 
-            //tool attached via a trailing hitch
+            double guidanceLookDist = Math.Max(tool.width * 0.5, avgSpeed * 0.277777 * guidanceLookAheadTime);
+            double pivotHeading = VehiclePose.PivotPose.Yaw;
+            guidanceLookPos.easting = VehiclePose.PivotPose.X + (Math.Sin(pivotHeading) * guidanceLookDist);
+            guidanceLookPos.northing = VehiclePose.PivotPose.Y + (Math.Cos(pivotHeading) * guidanceLookDist);
+
+            hitchPos.easting = VehiclePose.HitchWorld.X;
+            hitchPos.northing = VehiclePose.HitchWorld.Y;
+
+            double rearHeading = VehiclePose.IsArticulationModelEnabled ? VehiclePose.RearPose.Yaw : pivotHeading;
+
+            if (VehiclePose.IsArticulationModelEnabled)
+            {
+                VehiclePoseDebugLines = new[]
+                {
+                    string.Format(CultureInfo.InvariantCulture, "Pivot {0:0.00}, {1:0.00} | {2:0.0}°", VehiclePose.PivotPose.X, VehiclePose.PivotPose.Y, glm.toDegrees(VehiclePose.PivotPose.Yaw)),
+                    string.Format(CultureInfo.InvariantCulture, "Front {0:0.00}, {1:0.00} | {2:0.0}°", VehiclePose.FrontPose.X, VehiclePose.FrontPose.Y, glm.toDegrees(VehiclePose.FrontPose.Yaw)),
+                    string.Format(CultureInfo.InvariantCulture, "Rear {0:0.00}, {1:0.00} | {2:0.0}°", VehiclePose.RearPose.X, VehiclePose.RearPose.Y, glm.toDegrees(VehiclePose.RearPose.Yaw)),
+                    string.Format(CultureInfo.InvariantCulture, "Antenna {0:0.00}, {1:0.00}", VehiclePose.AntennaWorld.X, VehiclePose.AntennaWorld.Y),
+                    string.Format(CultureInfo.InvariantCulture, "Hitch {0:0.00}, {1:0.00}", VehiclePose.HitchWorld.X, VehiclePose.HitchWorld.Y)
+                };
+
+                if ((DateTime.UtcNow - _lastPoseDebugLog).TotalSeconds >= 1.0)
+                {
+                    Log.EventWriter("Pose " + VehiclePoseDebugLines[0]);
+                    _lastPoseDebugLog = DateTime.UtcNow;
+                }
+            }
+            else
+            {
+                VehiclePoseDebugLines = Array.Empty<string>();
+            }
+
             if (tool.isToolTrailing)
             {
                 double over;
                 if (tool.isToolTBT)
                 {
-                    //Torriem rules!!!!! Oh yes, this is all his. Thank-you
                     if (distanceCurrentStepFix != 0)
                     {
                         tankPos.heading = Math.Atan2(hitchPos.easting - tankPos.easting, hitchPos.northing - tankPos.northing);
                         if (tankPos.heading < 0) tankPos.heading += glm.twoPI;
                     }
 
-                    ////the tool is seriously jacknifed or just starting out so just spring it back.
-                    over = Math.Abs(Math.PI - Math.Abs(Math.Abs(tankPos.heading - fixHeading) - Math.PI));
+                    over = Math.Abs(Math.PI - Math.Abs(Math.Abs(tankPos.heading - rearHeading) - Math.PI));
 
                     if (over < 2.0 && startCounter > 50)
                     {
@@ -1323,29 +1358,26 @@ namespace AgOpenGPS
                         tankPos.northing = hitchPos.northing + (Math.Cos(tankPos.heading) * (tool.tankTrailingHitchLength));
                     }
 
-                    //criteria for a forced reset to put tool directly behind vehicle
                     if (over > 2.0 | startCounter < 51)
                     {
-                        tankPos.heading = fixHeading;
+                        tankPos.heading = rearHeading;
                         tankPos.easting = hitchPos.easting + (Math.Sin(tankPos.heading) * (tool.tankTrailingHitchLength));
                         tankPos.northing = hitchPos.northing + (Math.Cos(tankPos.heading) * (tool.tankTrailingHitchLength));
                     }
                 }
                 else
                 {
-                    tankPos.heading = fixHeading;
+                    tankPos.heading = rearHeading;
                     tankPos.easting = hitchPos.easting;
                     tankPos.northing = hitchPos.northing;
                 }
 
-                //Torriem rules!!!!! Oh yes, this is all his. Thank-you
                 if (distanceCurrentStepFix != 0)
                 {
                     toolPivotPos.heading = Math.Atan2(tankPos.easting - toolPivotPos.easting, tankPos.northing - toolPivotPos.northing);
                     if (toolPivotPos.heading < 0) toolPivotPos.heading += glm.twoPI;
                 }
 
-                ////the tool is seriously jacknifed or just starting out so just spring it back.
                 over = Math.Abs(Math.PI - Math.Abs(Math.Abs(toolPivotPos.heading - tankPos.heading) - Math.PI));
 
                 if (over < 1.9 && startCounter > 50)
@@ -1354,7 +1386,6 @@ namespace AgOpenGPS
                     toolPivotPos.northing = tankPos.northing + (Math.Cos(toolPivotPos.heading) * (tool.trailingHitchLength));
                 }
 
-                //criteria for a forced reset to put tool directly behind vehicle
                 if (over > 1.9 | startCounter < 51)
                 {
                     toolPivotPos.heading = tankPos.heading;
@@ -1363,20 +1394,16 @@ namespace AgOpenGPS
                 }
 
                 toolPos.heading = toolPivotPos.heading;
-                toolPos.easting = tankPos.easting + 
-                    (Math.Sin(toolPivotPos.heading) * (tool.trailingHitchLength - tool.trailingToolToPivotLength));
-                toolPos.northing = tankPos.northing + 
-                    (Math.Cos(toolPivotPos.heading) * (tool.trailingHitchLength - tool.trailingToolToPivotLength));
+                toolPos.easting = tankPos.easting + (Math.Sin(toolPivotPos.heading) * (tool.trailingHitchLength - tool.trailingToolToPivotLength));
+                toolPos.northing = tankPos.northing + (Math.Cos(toolPivotPos.heading) * (tool.trailingHitchLength - tool.trailingToolToPivotLength));
             }
-
-            //rigidly connected to vehicle
             else
             {
-                toolPivotPos.heading = fixHeading;
+                toolPivotPos.heading = rearHeading;
                 toolPivotPos.easting = hitchPos.easting;
                 toolPivotPos.northing = hitchPos.northing;
 
-                toolPos.heading = fixHeading;
+                toolPos.heading = rearHeading;
                 toolPos.easting = hitchPos.easting;
                 toolPos.northing = hitchPos.northing;
             }
@@ -1723,6 +1750,35 @@ namespace AgOpenGPS
                 }
                 return;
             }
+        }
+        private double ConvertImuHeadingToPivot(double imuHeading)
+        {
+            double heading = imuHeading;
+            if (vehicle.VehicleConfig.UseArticulatedFrameModel && vehicle.VehicleConfig.Type == VehicleType.Articulated)
+            {
+                heading -= GetArticulationAngleRadians() * 0.5;
+                heading = NormalizeHeading(heading);
+            }
+
+            return heading;
+        }
+
+        private static double NormalizeHeading(double heading)
+        {
+            while (heading >= glm.twoPI) heading -= glm.twoPI;
+            while (heading < 0) heading += glm.twoPI;
+            return heading;
+        }
+
+        private double GetArticulationAngleRadians()
+        {
+            if (!vehicle.VehicleConfig.UseArticulatedFrameModel || vehicle.VehicleConfig.Type != VehicleType.Articulated)
+            {
+                return 0.0;
+            }
+
+            double steerAngleDegrees = timerSim.Enabled ? sim.steerAngle : mc.actualSteerAngleDegrees;
+            return glm.toRadians(steerAngleDegrees);
         }
     }//end class
 }//end namespace

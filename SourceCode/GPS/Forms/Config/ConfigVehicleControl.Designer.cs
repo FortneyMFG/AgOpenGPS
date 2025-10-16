@@ -67,6 +67,7 @@
             this.pboxAlpha = new System.Windows.Forms.PictureBox();
             this.btnOpacityUp = new System.Windows.Forms.Button();
             this.cboxIsImage = new System.Windows.Forms.CheckBox();
+            this.chkUseArticulatedFrameModel = new System.Windows.Forms.CheckBox();
             this.labelImage = new System.Windows.Forms.Label();
             this.labelVehicleGroupBox.SuspendLayout();
             this.panelArticulatedBrands.SuspendLayout();
@@ -732,6 +733,19 @@
             this.cboxIsImage.UseVisualStyleBackColor = false;
             this.cboxIsImage.Click += new System.EventHandler(this.cboxIsImage_Click);
             // 
+            // chkUseArticulatedFrameModel
+            // 
+            this.chkUseArticulatedFrameModel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.chkUseArticulatedFrameModel.AutoSize = true;
+            this.chkUseArticulatedFrameModel.ForeColor = System.Drawing.SystemColors.ControlText;
+            this.chkUseArticulatedFrameModel.Location = new System.Drawing.Point(520, 135);
+            this.chkUseArticulatedFrameModel.Name = "chkUseArticulatedFrameModel";
+            this.chkUseArticulatedFrameModel.Size = new System.Drawing.Size(211, 17);
+            this.chkUseArticulatedFrameModel.TabIndex = 543;
+            this.chkUseArticulatedFrameModel.Text = "Enable articulation-aware frame math";
+            this.chkUseArticulatedFrameModel.UseVisualStyleBackColor = true;
+            this.chkUseArticulatedFrameModel.CheckedChanged += new System.EventHandler(this.chkUseArticulatedFrameModel_CheckedChanged);
+            // 
             // labelImage
             // 
             this.labelImage.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
@@ -759,6 +773,7 @@
             this.Controls.Add(this.btnOpacityDn);
             this.Controls.Add(this.panelOpacity);
             this.Controls.Add(this.btnOpacityUp);
+            this.Controls.Add(this.chkUseArticulatedFrameModel);
             this.Controls.Add(this.cboxIsImage);
             this.Font = new System.Drawing.Font("Tahoma", 9.75F);
             this.Name = "ConfigVehicleControl";
@@ -814,6 +829,7 @@
         private System.Windows.Forms.Panel panelOpacity;
         private System.Windows.Forms.PictureBox pboxAlpha;
         private System.Windows.Forms.Button btnOpacityUp;
+        private System.Windows.Forms.CheckBox chkUseArticulatedFrameModel;
         private System.Windows.Forms.CheckBox cboxIsImage;
         private System.Windows.Forms.Label labelImage;
     }

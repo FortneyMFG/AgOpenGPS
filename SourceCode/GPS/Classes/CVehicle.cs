@@ -53,6 +53,7 @@ namespace AgOpenGPS
             VehicleConfig.AntennaHeight = Properties.Settings.Default.setVehicle_antennaHeight;
             VehicleConfig.AntennaPivot = Properties.Settings.Default.setVehicle_antennaPivot;
             VehicleConfig.AntennaOffset = Properties.Settings.Default.setVehicle_antennaOffset;
+            VehicleConfig.UseArticulatedFrameModel = Properties.Settings.Default.setVehicle_useArticulatedFrameModel;
 
             VehicleConfig.Wheelbase = Properties.Settings.Default.setVehicle_wheelbase;
 
@@ -141,28 +142,75 @@ namespace AgOpenGPS
         public void DrawVehicle()
         {
             GL.Rotate(glm.toDegrees(-mf.fixHeading), 0.0, 0.0, 1.0);
+            VehiclePoseSnapshot pose = mf.VehiclePose;
+            bool articulatedModelActive = VehicleConfig.UseArticulatedFrameModel
+                && VehicleConfig.Type == VehicleType.Articulated
+                && pose.IsArticulationModelEnabled;
             //mf.font.DrawText3D(0, 0, "&TGF");
             if (mf.isFirstHeadingSet && !mf.tool.isToolFrontFixed)
             {
-                // Draw the rigid hitch
-                XyCoord[] vertices;
-                if (!mf.tool.isToolRearFixed)
-                {
-                    vertices = new XyCoord[] {
-                        new XyCoord(0, mf.tool.hitchLength), new XyCoord(0, 0)
-                    };
-                }
-                else
-                {
-                    vertices = new XyCoord[] {
-                        new XyCoord(-0.35, mf.tool.hitchLength), new XyCoord(-0.35, 0),
-                        new XyCoord( 0.35, mf.tool.hitchLength), new XyCoord( 0.35, 0)
-                    };
-                }
                 LineStyle backgroundLineStyle = new LineStyle(4, Colors.Black);
                 LineStyle foregroundLineStyle = new LineStyle(1, Colors.HitchRigidColor);
                 LineStyle[] layerStyles = { backgroundLineStyle, foregroundLineStyle };
-                GLW.DrawLinesPrimitiveLayered(layerStyles, vertices);
+
+                if (articulatedModelActive)
+                {
+                    XyCoord pivotLocal = new XyCoord(0, 0);
+                    XyCoord hitchLocal = pose.PivotLocalHitch;
+
+                    if (!mf.tool.isToolRearFixed)
+                    {
+                        XyCoord[] vertices = { hitchLocal, pivotLocal };
+                        GLW.DrawLinesPrimitiveLayered(layerStyles, vertices);
+                    }
+                    else
+                    {
+                        double dx = hitchLocal.X;
+                        double dy = hitchLocal.Y;
+                        double length = Math.Sqrt((dx * dx) + (dy * dy));
+                        double offsetX = 0.35;
+                        double offsetY = 0.0;
+                        if (length > 0.0001)
+                        {
+                            offsetX = (-dy / length) * 0.35;
+                            offsetY = (dx / length) * 0.35;
+                        }
+
+                        XyDelta offset = new XyDelta(offsetX, offsetY);
+                        XyCoord pivotOffset = pivotLocal + offset;
+                        XyCoord pivotOffsetOpposite = pivotLocal - offset;
+                        XyCoord hitchOffset = hitchLocal + offset;
+                        XyCoord hitchOffsetOpposite = hitchLocal - offset;
+
+                        XyCoord[] vertices =
+                        {
+                            hitchOffset, pivotOffset,
+                            hitchOffsetOpposite, pivotOffsetOpposite
+                        };
+                        GLW.DrawLinesPrimitiveLayered(layerStyles, vertices);
+                    }
+                }
+                else
+                {
+                    XyCoord[] vertices;
+                    if (!mf.tool.isToolRearFixed)
+                    {
+                        vertices = new XyCoord[]
+                        {
+                            new XyCoord(0, mf.tool.hitchLength), new XyCoord(0, 0)
+                        };
+                    }
+                    else
+                    {
+                        vertices = new XyCoord[]
+                        {
+                            new XyCoord(-0.35, mf.tool.hitchLength), new XyCoord(-0.35, 0),
+                            new XyCoord( 0.35, mf.tool.hitchLength), new XyCoord( 0.35, 0)
+                        };
+                    }
+
+                    GLW.DrawLinesPrimitiveLayered(layerStyles, vertices);
+                }
             }
 
             //draw the vehicle Body
@@ -243,21 +291,42 @@ namespace AgOpenGPS
                 }
                 else if (VehicleConfig.Type == VehicleType.Articulated)
                 {
-                    double modelSteerAngle = 0.5 * (mf.timerSim.Enabled ? mf.sim.steerAngle : mf.mc.actualSteerAngleDegrees);
                     GLW.SetColor(vehicleColor);
-
                     XyDelta articulated = new XyDelta(VehicleConfig.TrackWidth, -0.65 * VehicleConfig.Wheelbase);
-                    GL.PushMatrix();
-                    GL.Translate(0, -VehicleConfig.Wheelbase * 0.5, 0);
-                    GL.Rotate(modelSteerAngle, 0, 0, 1);
-                    mf.VehicleTextures.ArticulatedRear.DrawCenteredAroundOrigin(articulated);
-                    GL.PopMatrix();
 
-                    GL.PushMatrix();
-                    GL.Translate(0, VehicleConfig.Wheelbase * 0.5, 0);
-                    GL.Rotate(-modelSteerAngle, 0, 0, 1);
-                    mf.VehicleTextures.ArticulatedFront.DrawCenteredAroundOrigin(articulated);
-                    GL.PopMatrix();
+                    if (articulatedModelActive)
+                    {
+                        double rearRotation = glm.toDegrees(pose.RearPose.Yaw - pose.PivotPose.Yaw);
+                        double frontRotation = glm.toDegrees(pose.FrontPose.Yaw - pose.PivotPose.Yaw);
+
+                        GL.PushMatrix();
+                        GL.Translate(pose.PivotLocalRearAxle.X, pose.PivotLocalRearAxle.Y, 0);
+                        GL.Rotate(rearRotation, 0, 0, 1);
+                        mf.VehicleTextures.ArticulatedRear.DrawCenteredAroundOrigin(articulated);
+                        GL.PopMatrix();
+
+                        GL.PushMatrix();
+                        GL.Translate(pose.PivotLocalFrontAxle.X, pose.PivotLocalFrontAxle.Y, 0);
+                        GL.Rotate(frontRotation, 0, 0, 1);
+                        mf.VehicleTextures.ArticulatedFront.DrawCenteredAroundOrigin(articulated);
+                        GL.PopMatrix();
+                    }
+                    else
+                    {
+                        double modelSteerAngle = 0.5 * (mf.timerSim.Enabled ? mf.sim.steerAngle : mf.mc.actualSteerAngleDegrees);
+
+                        GL.PushMatrix();
+                        GL.Translate(0, -VehicleConfig.Wheelbase * 0.5, 0);
+                        GL.Rotate(modelSteerAngle, 0, 0, 1);
+                        mf.VehicleTextures.ArticulatedRear.DrawCenteredAroundOrigin(articulated);
+                        GL.PopMatrix();
+
+                        GL.PushMatrix();
+                        GL.Translate(0, VehicleConfig.Wheelbase * 0.5, 0);
+                        GL.Rotate(-modelSteerAngle, 0, 0, 1);
+                        mf.VehicleTextures.ArticulatedFront.DrawCenteredAroundOrigin(articulated);
+                        GL.PopMatrix();
+                    }
                 }
             }
             else
@@ -289,7 +358,11 @@ namespace AgOpenGPS
                 PointStyle antennaBackgroundStyle = new PointStyle(16, Colors.Black);
                 PointStyle antennaForegroundStyle = new PointStyle(10, Colors.AntennaColor);
                 PointStyle[] layerStyles = { antennaBackgroundStyle, antennaForegroundStyle };
-                GLW.DrawPointLayered(layerStyles, -VehicleConfig.AntennaOffset, VehicleConfig.AntennaPivot, 0.1);
+
+                XyCoord antennaLocal = articulatedModelActive
+                    ? pose.PivotLocalAntenna
+                    : new XyCoord(-VehicleConfig.AntennaOffset, VehicleConfig.AntennaPivot);
+                GLW.DrawPointLayered(layerStyles, antennaLocal.X, antennaLocal.Y, 0.1);
             }
 
             if (mf.bnd.isBndBeingMade && mf.bnd.isDrawAtPivot)
