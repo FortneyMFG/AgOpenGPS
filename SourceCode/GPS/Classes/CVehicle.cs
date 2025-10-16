@@ -141,37 +141,59 @@ namespace AgOpenGPS
         public void DrawVehicle()
         {
             GL.Rotate(glm.toDegrees(-mf.fixHeading), 0.0, 0.0, 1.0);
+            double pivotX = mf.pivotAxlePos.easting;
+            double pivotY = mf.pivotAxlePos.northing;
+            double sinFixHeading = Math.Sin(mf.fixHeading);
+            double cosFixHeading = Math.Cos(mf.fixHeading);
+
+            XyCoord TransformWorldToVehicleLocal(double worldX, double worldY)
+            {
+                double dx = worldX - pivotX;
+                double dy = worldY - pivotY;
+                double x = cosFixHeading * dx - sinFixHeading * dy;
+                double y = sinFixHeading * dx + cosFixHeading * dy;
+                return new XyCoord(x, y);
+            }
+
             //mf.font.DrawText3D(0, 0, "&TGF");
             if (mf.isFirstHeadingSet && !mf.tool.isToolFrontFixed)
             {
-                // Draw the rigid hitch
-                double hitchLengthFromPivot = mf.tool.GetHitchLengthFromVehiclePivot();
-                double hitchHeading = mf.tool.GetHitchHeadingFromVehiclePivot(hitchLengthFromPivot);
-                double hitchAngleOffset = hitchHeading - mf.fixHeading;
-                double sinOffset = Math.Sin(hitchAngleOffset);
-                double cosOffset = Math.Cos(hitchAngleOffset);
-
-                XyCoord TransformVertex(double lateral, double longitudinal)
-                {
-                    double x = lateral * cosOffset + longitudinal * sinOffset;
-                    double y = longitudinal * cosOffset - lateral * sinOffset;
-                    return new XyCoord(x, y);
-                }
+                double hitchRearX = mf.hitchPos.easting;
+                double hitchRearY = mf.hitchPos.northing;
+                XyCoord hitchFrontLocal = new XyCoord(0, 0);
+                XyCoord hitchRearLocal = TransformWorldToVehicleLocal(hitchRearX, hitchRearY);
 
                 XyCoord[] vertices;
                 if (!mf.tool.isToolRearFixed)
                 {
                     vertices = new XyCoord[]
                     {
-                        TransformVertex(0, hitchLengthFromPivot), TransformVertex(0, 0)
+                        hitchRearLocal, hitchFrontLocal
                     };
                 }
                 else
                 {
+                    double dirX = hitchRearX - pivotX;
+                    double dirY = hitchRearY - pivotY;
+                    double length = Math.Sqrt(dirX * dirX + dirY * dirY);
+                    double offsetX = 0;
+                    double offsetY = 0;
+                    if (!glm.IsZero(length))
+                    {
+                        double scale = 0.35 / length;
+                        offsetX = -dirY * scale;
+                        offsetY = dirX * scale;
+                    }
+
+                    XyCoord rearLeft = TransformWorldToVehicleLocal(hitchRearX + offsetX, hitchRearY + offsetY);
+                    XyCoord frontLeft = TransformWorldToVehicleLocal(pivotX + offsetX, pivotY + offsetY);
+                    XyCoord rearRight = TransformWorldToVehicleLocal(hitchRearX - offsetX, hitchRearY - offsetY);
+                    XyCoord frontRight = TransformWorldToVehicleLocal(pivotX - offsetX, pivotY - offsetY);
+
                     vertices = new XyCoord[]
                     {
-                        TransformVertex(-0.35, hitchLengthFromPivot), TransformVertex(-0.35, 0),
-                        TransformVertex( 0.35, hitchLengthFromPivot), TransformVertex( 0.35, 0)
+                        rearLeft, frontLeft,
+                        rearRight, frontRight
                     };
                 }
                 LineStyle backgroundLineStyle = new LineStyle(4, Colors.Black);
@@ -301,10 +323,29 @@ namespace AgOpenGPS
             if (mf.camera.camSetDistance > -75 && mf.isFirstHeadingSet)
             {
                 //draw the bright antenna dot
+                double frontAxleX = mf.steerAxlePos.easting;
+                double frontAxleY = mf.steerAxlePos.northing;
+                double frontHeading = mf.steerAxlePos.heading;
+
+                double pivotToFrontDistance = Math.Sqrt(
+                    (frontAxleX - pivotX) * (frontAxleX - pivotX)
+                    + (frontAxleY - pivotY) * (frontAxleY - pivotY));
+                double axFront = VehicleConfig.AntennaPivot - pivotToFrontDistance;
+                double ayFront = VehicleConfig.AntennaOffset;
+
+                double forwardX = Math.Sin(frontHeading);
+                double forwardY = Math.Cos(frontHeading);
+                double leftX = -Math.Cos(frontHeading);
+                double leftY = Math.Sin(frontHeading);
+
+                double antennaWorldX = frontAxleX + forwardX * axFront + leftX * ayFront;
+                double antennaWorldY = frontAxleY + forwardY * axFront + leftY * ayFront;
+                XyCoord antennaLocal = TransformWorldToVehicleLocal(antennaWorldX, antennaWorldY);
+
                 PointStyle antennaBackgroundStyle = new PointStyle(16, Colors.Black);
                 PointStyle antennaForegroundStyle = new PointStyle(10, Colors.AntennaColor);
                 PointStyle[] layerStyles = { antennaBackgroundStyle, antennaForegroundStyle };
-                GLW.DrawPointLayered(layerStyles, -VehicleConfig.AntennaOffset, VehicleConfig.AntennaPivot, 0.1);
+                GLW.DrawPointLayered(layerStyles, antennaLocal.X, antennaLocal.Y, 0.1);
             }
 
             if (mf.bnd.isBndBeingMade && mf.bnd.isDrawAtPivot)
