@@ -105,7 +105,16 @@ namespace AgOpenGPS
                     GL.LoadIdentity();
 
                     //position the camera
-                    camera.SetLookAt(pn.fix.easting, pn.fix.northing, camHeading);
+                    double lookAtEasting = pn.fix.easting;
+                    double lookAtNorthing = pn.fix.northing;
+
+                    if (vehicle.VehicleConfig.Type == VehicleType.Articulated)
+                    {
+                        lookAtEasting = steerAxlePos.easting;
+                        lookAtNorthing = steerAxlePos.northing;
+                    }
+
+                    camera.SetLookAt(lookAtEasting, lookAtNorthing, camHeading);
 
                     //the bounding box of the camera for cullling.
                     CalcFrustum();
