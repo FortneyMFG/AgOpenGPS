@@ -214,14 +214,14 @@ namespace AgOpenGPS
 
             UpdateFrameHeadings(mf.fixHeading, articulationDegrees);
 
-            GL.Rotate(glm.toDegrees(-FrontFrameHeading), 0.0, 0.0, 1.0);
+            GL.Rotate(glm.toDegrees(-PivotFrameHeading), 0.0, 0.0, 1.0);
             //mf.font.DrawText3D(0, 0, "&TGF");
             if (mf.isFirstHeadingSet && !mf.tool.isToolFrontFixed)
             {
                 // Draw the rigid hitch
                 double hitchLengthFromPivot = mf.tool.GetHitchLengthFromVehiclePivot();
                 double hitchHeading = mf.tool.GetHitchHeadingFromVehiclePivot(hitchLengthFromPivot);
-                double hitchAngleOffset = NormalizeRelativeAngle(hitchHeading - FrontFrameHeading);
+                double hitchAngleOffset = NormalizeRelativeAngle(hitchHeading - PivotFrameHeading);
                 double sinOffset = Math.Sin(hitchAngleOffset);
                 double cosOffset = Math.Cos(hitchAngleOffset);
 
@@ -357,6 +357,7 @@ namespace AgOpenGPS
                         frontOffset = VehicleConfig.Wheelbase - rearOffset;
                     }
 
+                    GL.Rotate(halfArticulationDegrees, 0, 0, 1);
                     GL.Translate(0, frontOffset, 0);
                     mf.VehicleTextures.ArticulatedFront.DrawCenteredAroundOrigin(articulated);
                     GL.PopMatrix();
