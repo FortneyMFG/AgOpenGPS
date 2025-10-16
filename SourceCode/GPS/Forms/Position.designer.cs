@@ -41,6 +41,7 @@ namespace AgOpenGPS
         public vec3 toolPos = new vec3(0, 0, 0);
         public vec3 tankPos = new vec3(0, 0, 0);
         public vec2 hitchPos = new vec2(0, 0);
+        public vec2 antennaPos = new vec2(0, 0);
 
         //history
         public vec2 prevFix = new vec2(0, 0);
@@ -1298,8 +1299,25 @@ namespace AgOpenGPS
             steerAxlePos.northing = pivotAxlePos.northing + (Math.Cos(steerHeading) * pivotToSteerDistance);
             steerAxlePos.heading = steerHeading;
 
-            //guidance look ahead distance based on time or tool width at least 
-            
+            double sinFrontHeading = Math.Sin(steerHeading);
+            double cosFrontHeading = Math.Cos(steerHeading);
+            double forwardX = sinFrontHeading;
+            double forwardY = cosFrontHeading;
+            double leftX = -cosFrontHeading;
+            double leftY = sinFrontHeading;
+
+            double antennaWorldX = pivotAxlePos.easting
+                + forwardX * vehicle.VehicleConfig.AntennaPivot
+                + leftX * vehicle.VehicleConfig.AntennaOffset;
+            double antennaWorldY = pivotAxlePos.northing
+                + forwardY * vehicle.VehicleConfig.AntennaPivot
+                + leftY * vehicle.VehicleConfig.AntennaOffset;
+
+            antennaPos.easting = antennaWorldX;
+            antennaPos.northing = antennaWorldY;
+
+            //guidance look ahead distance based on time or tool width at least
+
             double guidanceLookDist = (Math.Max(tool.width * 0.5, avgSpeed * 0.277777 * guidanceLookAheadTime));
             guidanceLookPos.easting = pivotAxlePos.easting + (Math.Sin(fixHeading) * guidanceLookDist);
             guidanceLookPos.northing = pivotAxlePos.northing + (Math.Cos(fixHeading) * guidanceLookDist);
