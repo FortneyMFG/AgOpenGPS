@@ -148,17 +148,19 @@ namespace AgOpenGPS
             double frontHeading = mf.steerAxlePos.heading;
             double sinFrontHeading = Math.Sin(frontHeading);
             double cosFrontHeading = Math.Cos(frontHeading);
+            double frontAxleX = mf.steerAxlePos.easting;
+            double frontAxleY = mf.steerAxlePos.northing;
             double pivotToFrontDistance = Math.Sqrt(
-                (mf.steerAxlePos.easting - pivotX) * (mf.steerAxlePos.easting - pivotX)
-                + (mf.steerAxlePos.northing - pivotY) * (mf.steerAxlePos.northing - pivotY));
+                (frontAxleX - pivotX) * (frontAxleX - pivotX)
+                + (frontAxleY - pivotY) * (frontAxleY - pivotY));
             if (glm.IsZero(pivotToFrontDistance))
             {
                 pivotToFrontDistance = VehicleConfig.Type == VehicleType.Articulated
                     ? 0.5 * VehicleConfig.Wheelbase
                     : VehicleConfig.Wheelbase;
+                frontAxleX = pivotX + sinFrontHeading * pivotToFrontDistance;
+                frontAxleY = pivotY + cosFrontHeading * pivotToFrontDistance;
             }
-            double frontAxleX = pivotX + sinFrontHeading * pivotToFrontDistance;
-            double frontAxleY = pivotY + cosFrontHeading * pivotToFrontDistance;
 
             XyCoord TransformWorldToVehicleLocal(double worldX, double worldY)
             {
