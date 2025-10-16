@@ -40,8 +40,11 @@ namespace AgOpenGPS.WpfApp
 
         void ISelectFieldPanelPresenter.CloseSelectNearFieldDialog()
         {
-            _selectNearFieldDialog?.Close();
-            _selectFieldDialog = null;
+            if (_selectNearFieldDialog != null)
+            {
+                _selectNearFieldDialog.Close();
+                _selectNearFieldDialog = null;
+            }
         }
 
         void ISelectFieldPanelPresenter.ShowCreateFromExistingFieldDialog(
@@ -73,8 +76,11 @@ namespace AgOpenGPS.WpfApp
 
         void ISelectFieldPanelPresenter.CloseSelectFieldDialog()
         {
-            _selectFieldDialog.Close();
-            _selectFieldDialog = null;
+            if (_selectFieldDialog != null)
+            {
+                _selectFieldDialog.Close();
+                _selectFieldDialog = null;
+            }
         }
 
         bool ISelectFieldPanelPresenter.ShowConfirmDeleteMessageBox(string fieldName)
