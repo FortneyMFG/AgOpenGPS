@@ -341,11 +341,11 @@ namespace AgOpenGPS
                         rearOffset = VehicleConfig.Wheelbase * 0.5;
                     }
 
-                    double articulationRadians = NormalizeRelativeAngle(ArticulationAngleRadians);
-                    double articulationDegreesLocal = glm.toDegrees(articulationRadians);
+                    double rearFrameRelativeAngleRadians = NormalizeRelativeAngle(RearFrameHeading - FrontFrameHeading);
+                    double rearFrameRelativeAngleDegrees = glm.toDegrees(rearFrameRelativeAngleRadians);
 
                     GL.PushMatrix();
-                    GL.Rotate(articulationDegreesLocal, 0, 0, 1);
+                    GL.Rotate(rearFrameRelativeAngleDegrees, 0, 0, 1);
                     GL.Translate(0, -rearOffset, 0);
                     mf.VehicleTextures.ArticulatedRear.DrawCenteredAroundOrigin(articulated);
                     GL.PopMatrix();
