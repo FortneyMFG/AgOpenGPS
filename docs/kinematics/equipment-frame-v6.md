@@ -38,11 +38,11 @@ frontOrigin = pivot + R(ψ_f) · \begin{bmatrix}0\\L/2\end{bmatrix}
 When the front frame pivots, the antenna is translated and rotated by the front pose so it mirrors the cab swing. The same pose is published to guidance and the draw layer, eliminating divergence between physics and visuals.【F:SourceCode/GPS/Classes/CVehicle.cs†L139-L241】
 
 ## 3. IMU Orientation and Rotation
-IMU headings are converted to pivot headings through `ConvertImuHeadingToPivot`. When the articulation-aware frame is active the IMU yaw (measured on the front frame) is offset by `δ/2` before being stored in `fixHeading`, ensuring the fused heading represents the pivot frame used by autosteer and guidance.【F:SourceCode/GPS/Forms/Position.designer.cs†L252-L339】【F:SourceCode/GPS/Forms/Position.designer.cs†L1432-L1479】
+IMU and GPS headings are converted to pivot headings through `ConvertHeadingToPivot`. When the articulation-aware frame is active the front-frame yaw is offset by `δ/2` before being stored in `fixHeading`, ensuring the fused heading represents the pivot frame used by autosteer and guidance.【F:SourceCode/GPS/Forms/Position.designer.cs†L252-L339】【F:SourceCode/GPS/Forms/Position.designer.cs†L1432-L1479】
 
 If the IMU is co-located with the antenna (default), its pose equals the front frame pose. If mounted elsewhere, the same `VehiclePoseCalculator` logic can be extended with an additional local offset so that both roll and yaw corrections are mapped back through the front frame to the pivot.【F:SourceCode/AgOpenGPS.Core/Models/Vehicle/VehiclePoseSnapshot.cs†L1-L173】
 
-Ignoring this transform causes the IMU to inject front-frame yaw directly into `fixHeading`, leading to heading jumps whenever articulation changes. Subtracting `δ/2` stabilises the fused heading during rapid steering of articulated tractors.【F:SourceCode/GPS/Forms/Position.designer.cs†L252-L339】
+Ignoring this transform causes the sensors to inject front-frame yaw directly into `fixHeading`, leading to heading jumps whenever articulation changes. Subtracting `δ/2` stabilises the fused heading during rapid steering of articulated tractors.【F:SourceCode/GPS/Forms/Position.designer.cs†L252-L339】
 
 ## 4. Hitch Position and Behavior
 The hitch is expressed as a rear-frame offset `(-antennaOffset, hitchLength + L/2)` so it inherits both the rear translation and yaw. `CalculatePositionHeading` stores the resulting world coordinates in `hitchPos`, while `CVehicle.DrawVehicle` uses the same pivot-local vector to draw the hitch link. For rigid implements the rear-frame heading replaces the earlier `fixHeading`, ensuring the tool aligns with the rear axle rather than the mid-hinge.【F:SourceCode/AgOpenGPS.Core/Models/Vehicle/VehiclePoseSnapshot.cs†L69-L118】【F:SourceCode/GPS/Forms/Position.designer.cs†L1280-L1379】【F:SourceCode/GPS/Classes/CVehicle.cs†L139-L241】
@@ -66,7 +66,7 @@ Key classes to review: `VehiclePoseCalculator`, `FormGPS.CalculatePositionHeadin
 1. **Introduce hierarchy:** `VehiclePoseSnapshot` captures pivot, front, rear, antenna, hitch, and IMU poses each frame.【F:SourceCode/AgOpenGPS.Core/Models/Vehicle/VehiclePoseSnapshot.cs†L1-L173】
 2. **Compute articulation offsets:** The calculator splits the steering angle evenly across front/rear frames and translates ±`wheelbase/2` from the pivot before applying local sensor offsets.【F:SourceCode/AgOpenGPS.Core/Models/Vehicle/VehiclePoseSnapshot.cs†L37-L118】
 3. **Recompute antenna/hitch transforms:** `CalculatePositionHeading` stores the world positions and pivot-relative coordinates for reuse downstream.【F:SourceCode/GPS/Forms/Position.designer.cs†L1258-L1379】
-4. **Update IMU processing:** `ConvertImuHeadingToPivot` subtracts half the articulation angle when the toggle is enabled, so the fused heading always refers to the pivot.【F:SourceCode/GPS/Forms/Position.designer.cs†L252-L339】
+4. **Update sensor processing:** `ConvertHeadingToPivot` subtracts half the articulation angle when the toggle is enabled, so the fused heading always refers to the pivot.【F:SourceCode/GPS/Forms/Position.designer.cs†L252-L339】
 5. **Synchronise visualization:** `CVehicle.DrawVehicle` draws hitch lines, articulated halves, and the antenna using the same pivot-local coordinates generated for physics.【F:SourceCode/GPS/Classes/CVehicle.cs†L139-L241】
 6. **Validate geometry:** The debug overlay lists pivot, front, rear, antenna, and hitch world coordinates for every frame; unit tests cover the transform math (see §7).【F:SourceCode/GPS/Forms/OpenGL.Designer.cs†L456-L515】
 
