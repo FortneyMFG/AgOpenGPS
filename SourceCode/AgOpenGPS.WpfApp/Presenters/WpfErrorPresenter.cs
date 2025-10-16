@@ -1,5 +1,7 @@
 ﻿using AgOpenGPS.Core.Interfaces;
+using AgOpenGPS.WpfApp.Notifications;
 using System;
+using System.Windows;
 
 namespace AgOpenGPS.WpfApp.Presenters
 {
@@ -7,7 +9,31 @@ namespace AgOpenGPS.WpfApp.Presenters
     {
         void IErrorPresenter.PresentTimedMessage(TimeSpan timeSpan, string titleString, string messageString)
         {
-            throw new NotImplementedException();
+            void ShowWindow()
+            {
+                var window = new TimedMessageWindow(timeSpan, titleString, messageString)
+                {
+                    Owner = Application.Current?.MainWindow
+                };
+                window.Show();
+                window.Activate();
+            }
+
+            var dispatcher = Application.Current?.Dispatcher;
+            if (dispatcher == null)
+            {
+                ShowWindow();
+                return;
+            }
+
+            if (dispatcher.CheckAccess())
+            {
+                ShowWindow();
+            }
+            else
+            {
+                dispatcher.BeginInvoke((Action)ShowWindow);
+            }
         }
     }
 }
