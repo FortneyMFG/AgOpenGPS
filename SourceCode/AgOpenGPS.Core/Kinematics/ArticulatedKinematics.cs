@@ -28,13 +28,39 @@ namespace AgOpenGPS.Core.Kinematics
             return new Result(frontFrameWorld, rff, rearFrameWorld, rrf, antennaWorld, imuWorld, drawbarWorld);
         }
 
-        public readonly record struct Result(
-            Vector3 FrontFrameWorldPosition,
-            Matrix3 FrontFrameOrientation,
-            Vector3 RearFrameWorldPosition,
-            Matrix3 RearFrameOrientation,
-            Vector3 AntennaWorldPosition,
-            Vector3 ImuWorldPosition,
-            Vector3 DrawbarWorldPosition);
+        public readonly struct Result
+        {
+            public Result(
+                Vector3 frontFrameWorldPosition,
+                Matrix3 frontFrameOrientation,
+                Vector3 rearFrameWorldPosition,
+                Matrix3 rearFrameOrientation,
+                Vector3 antennaWorldPosition,
+                Vector3 imuWorldPosition,
+                Vector3 drawbarWorldPosition)
+            {
+                FrontFrameWorldPosition = frontFrameWorldPosition;
+                FrontFrameOrientation = frontFrameOrientation;
+                RearFrameWorldPosition = rearFrameWorldPosition;
+                RearFrameOrientation = rearFrameOrientation;
+                AntennaWorldPosition = antennaWorldPosition;
+                ImuWorldPosition = imuWorldPosition;
+                DrawbarWorldPosition = drawbarWorldPosition;
+            }
+
+            public Vector3 FrontFrameWorldPosition { get; }
+
+            public Matrix3 FrontFrameOrientation { get; }
+
+            public Vector3 RearFrameWorldPosition { get; }
+
+            public Matrix3 RearFrameOrientation { get; }
+
+            public Vector3 AntennaWorldPosition { get; }
+
+            public Vector3 ImuWorldPosition { get; }
+
+            public Vector3 DrawbarWorldPosition { get; }
+        }
     }
 }
