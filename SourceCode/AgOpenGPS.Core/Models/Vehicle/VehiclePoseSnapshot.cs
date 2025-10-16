@@ -85,23 +85,27 @@ namespace AgOpenGPS.Core.Models
 
             double halfWheelbase = wheelbase * 0.5;
 
+            double frontHeading = pivotHeading + (articulationAngle * 0.5);
+            double rearHeading = pivotHeading - (articulationAngle * 0.5);
+
             XyCoord frontOriginLocalPivot = new XyCoord(0, halfWheelbase);
             XyCoord antennaLocalFront = new XyCoord(-antennaOffset, antennaPivot - halfWheelbase);
 
-            XyCoord rotatedFrontOrigin = Pose2.Rotate(pivotHeading, frontOriginLocalPivot.X, frontOriginLocalPivot.Y);
-            XyCoord rotatedAntennaLocal = Pose2.Rotate(pivotHeading + articulationAngle * 0.5, antennaLocalFront.X, antennaLocalFront.Y);
+            XyCoord rotatedFrontOrigin = Pose2.Rotate(frontHeading, frontOriginLocalPivot.X, frontOriginLocalPivot.Y);
+            XyCoord rotatedAntennaLocal = Pose2.Rotate(frontHeading, antennaLocalFront.X, antennaLocalFront.Y);
 
             double pivotX = antennaWorld.X - rotatedFrontOrigin.X - rotatedAntennaLocal.X;
             double pivotY = antennaWorld.Y - rotatedFrontOrigin.Y - rotatedAntennaLocal.Y;
 
             Pose2 pivotPose = new Pose2(pivotX, pivotY, pivotHeading);
 
-            XyCoord frontOriginWorld = pivotPose.ApplyLocal(frontOriginLocalPivot.X, frontOriginLocalPivot.Y);
-            Pose2 frontPose = new Pose2(frontOriginWorld.X, frontOriginWorld.Y, pivotHeading + (articulationAngle * 0.5));
+            XyCoord frontOriginWorld = new XyCoord(pivotX + rotatedFrontOrigin.X, pivotY + rotatedFrontOrigin.Y);
+            Pose2 frontPose = new Pose2(frontOriginWorld.X, frontOriginWorld.Y, frontHeading);
 
             XyCoord rearOriginLocalPivot = new XyCoord(0, -halfWheelbase);
-            XyCoord rearOriginWorld = pivotPose.ApplyLocal(rearOriginLocalPivot.X, rearOriginLocalPivot.Y);
-            Pose2 rearPose = new Pose2(rearOriginWorld.X, rearOriginWorld.Y, pivotHeading - (articulationAngle * 0.5));
+            XyCoord rotatedRearOrigin = Pose2.Rotate(rearHeading, rearOriginLocalPivot.X, rearOriginLocalPivot.Y);
+            XyCoord rearOriginWorld = new XyCoord(pivotX + rotatedRearOrigin.X, pivotY + rotatedRearOrigin.Y);
+            Pose2 rearPose = new Pose2(rearOriginWorld.X, rearOriginWorld.Y, rearHeading);
 
             XyCoord antennaWorldComputed = frontPose.ApplyLocal(antennaLocalFront.X, antennaLocalFront.Y);
 
