@@ -1,11 +1,14 @@
 ﻿//Please, if you use this, share the improvements
 
 using AgLibrary.Logging;
+using AgOpenGPS.Core.Kinematics;
+using AgOpenGPS.Core.Kinematics.Math;
 using AgOpenGPS.Core.Models;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
+using System.Windows.Forms;
 
 namespace AgOpenGPS
 {
@@ -41,6 +44,9 @@ namespace AgOpenGPS
         public vec3 toolPos = new vec3(0, 0, 0);
         public vec3 tankPos = new vec3(0, 0, 0);
         public vec2 hitchPos = new vec2(0, 0);
+
+        public ArticulatedKinematics.Result? CurrentArticulatedKinematics { get; private set; }
+        public bool ShowArticulatedDebug { get; private set; }
 
         //history
         public vec2 prevFix = new vec2(0, 0);
@@ -1280,26 +1286,62 @@ namespace AgOpenGPS
         {
             #region pivot hitch trail
 
-            //translate from pivot position to steer axle and pivot axle position
-            //translate world to the pivot axle
-            pivotAxlePos.easting = pn.fix.easting - (Math.Sin(fixHeading) * vehicle.VehicleConfig.AntennaPivot);
-            pivotAxlePos.northing = pn.fix.northing - (Math.Cos(fixHeading) * vehicle.VehicleConfig.AntennaPivot);
-            pivotAxlePos.heading = fixHeading;
+            double articulation = 0.0;
+            if (vehicle.VehicleConfig.Type == VehicleType.Articulated)
+            {
+                double articulationDegrees = timerSim.Enabled ? sim.steerAngle : mc.actualSteerAngleDegrees;
+                articulation = glm.toRadians(articulationDegrees);
+            }
 
-            steerAxlePos.easting = pivotAxlePos.easting + (Math.Sin(fixHeading) * vehicle.VehicleConfig.Wheelbase);
-            steerAxlePos.northing = pivotAxlePos.northing + (Math.Cos(fixHeading) * vehicle.VehicleConfig.Wheelbase);
-            steerAxlePos.heading = fixHeading;
+            double frontHeading = fixHeading;
+            double psi = frontHeading - (articulation * 0.5);
 
-            //guidance look ahead distance based on time or tool width at least 
-            
-            double guidanceLookDist = (Math.Max(tool.width * 0.5, avgSpeed * 0.277777 * guidanceLookAheadTime));
-            guidanceLookPos.easting = pivotAxlePos.easting + (Math.Sin(fixHeading) * guidanceLookDist);
-            guidanceLookPos.northing = pivotAxlePos.northing + (Math.Cos(fixHeading) * guidanceLookDist);
-            
+            Vector3 antennaWorld = new Vector3(pn.fix.easting, pn.fix.northing, vehicle.VehicleConfig.AntennaHeight);
+            Vector3 antennaLocal = SensorOffsets.ReadAntennaOffsetFrontFrame(vehicle.VehicleConfig);
+            Vector3 imuLocal = SensorOffsets.ReadImuOffsetFrontFrame(vehicle.VehicleConfig);
+            double wheelbaseFront = SensorOffsets.ReadWheelbaseFront(vehicle.VehicleConfig);
+            double wheelbaseRear = SensorOffsets.ReadWheelbaseRear(vehicle.VehicleConfig);
+            Vector3 drawbarLocal = SensorOffsets.ReadDrawbarOffsetRearFrame(tool.hitchLength);
 
-            //determine where the rigid vehicle hitch ends
-            hitchPos.easting = pn.fix.easting + (Math.Sin(fixHeading) * (tool.hitchLength - vehicle.VehicleConfig.AntennaPivot));
-            hitchPos.northing = pn.fix.northing + (Math.Cos(fixHeading) * (tool.hitchLength - vehicle.VehicleConfig.AntennaPivot));
+            Matrix3 frontRotation = Rotation.Rz(frontHeading);
+            Matrix3 articulationRotation = Rotation.Rz(psi);
+            Vector3 frontFrameWorld = antennaWorld - frontRotation * antennaLocal;
+            Vector3 articulationWorld = frontFrameWorld - articulationRotation * new Vector3(wheelbaseFront, 0, 0);
+
+            ArticulatedKinematics.Result kinematics = ArticulatedKinematics.Compute(
+                psi,
+                articulation,
+                articulationWorld,
+                wheelbaseFront,
+                wheelbaseRear,
+                antennaLocal,
+                imuLocal,
+                drawbarLocal);
+
+            CurrentArticulatedKinematics = kinematics;
+
+            Vector3 frontWorld = kinematics.FrontFrameWorldPosition;
+            Vector3 rearWorld = kinematics.RearFrameWorldPosition;
+            Vector3 drawbarWorld = kinematics.DrawbarWorldPosition;
+
+            double frontYaw = kinematics.FrontFrameOrientation.Yaw;
+            double rearYaw = kinematics.RearFrameOrientation.Yaw;
+
+            pivotAxlePos.easting = drawbarWorld.X;
+            pivotAxlePos.northing = drawbarWorld.Y;
+            pivotAxlePos.heading = rearYaw;
+
+            steerAxlePos.easting = frontWorld.X;
+            steerAxlePos.northing = frontWorld.Y;
+            steerAxlePos.heading = frontYaw;
+
+            double guidanceLookDist = Math.Max(tool.width * 0.5, avgSpeed * 0.277777 * guidanceLookAheadTime);
+            Vector3 guidanceVector = kinematics.FrontFrameOrientation * new Vector3(guidanceLookDist, 0, 0);
+            guidanceLookPos.easting = frontWorld.X + guidanceVector.X;
+            guidanceLookPos.northing = frontWorld.Y + guidanceVector.Y;
+
+            hitchPos.easting = drawbarWorld.X;
+            hitchPos.northing = drawbarWorld.Y;
 
             //tool attached via a trailing hitch
             if (tool.isToolTrailing)
@@ -1315,7 +1357,7 @@ namespace AgOpenGPS
                     }
 
                     ////the tool is seriously jacknifed or just starting out so just spring it back.
-                    over = Math.Abs(Math.PI - Math.Abs(Math.Abs(tankPos.heading - fixHeading) - Math.PI));
+                    over = Math.Abs(Math.PI - Math.Abs(Math.Abs(tankPos.heading - rearYaw) - Math.PI));
 
                     if (over < 2.0 && startCounter > 50)
                     {
@@ -1326,14 +1368,14 @@ namespace AgOpenGPS
                     //criteria for a forced reset to put tool directly behind vehicle
                     if (over > 2.0 | startCounter < 51)
                     {
-                        tankPos.heading = fixHeading;
+                        tankPos.heading = rearYaw;
                         tankPos.easting = hitchPos.easting + (Math.Sin(tankPos.heading) * (tool.tankTrailingHitchLength));
                         tankPos.northing = hitchPos.northing + (Math.Cos(tankPos.heading) * (tool.tankTrailingHitchLength));
                     }
                 }
                 else
                 {
-                    tankPos.heading = fixHeading;
+                    tankPos.heading = rearYaw;
                     tankPos.easting = hitchPos.easting;
                     tankPos.northing = hitchPos.northing;
                 }
@@ -1372,11 +1414,11 @@ namespace AgOpenGPS
             //rigidly connected to vehicle
             else
             {
-                toolPivotPos.heading = fixHeading;
+                toolPivotPos.heading = rearYaw;
                 toolPivotPos.easting = hitchPos.easting;
                 toolPivotPos.northing = hitchPos.northing;
 
-                toolPos.heading = fixHeading;
+                toolPos.heading = rearYaw;
                 toolPos.easting = hitchPos.easting;
                 toolPos.northing = hitchPos.northing;
             }
@@ -1414,6 +1456,17 @@ namespace AgOpenGPS
             //precalc the sin and cos of heading * -1
             sinSectionHeading = Math.Sin(-toolPivotPos.heading);
             cosSectionHeading = Math.Cos(-toolPivotPos.heading);
+        }
+
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            if (keyData == (Keys.Control | Keys.Shift | Keys.D))
+            {
+                ShowArticulatedDebug = !ShowArticulatedDebug;
+                return true;
+            }
+
+            return base.ProcessCmdKey(ref msg, keyData);
         }
 
         //calculate the extreme tool left, right velocities, each section lookahead, and whether or not its going backwards

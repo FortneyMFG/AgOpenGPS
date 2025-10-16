@@ -2,6 +2,8 @@
 
 using AgOpenGPS.Core.Drawing;
 using AgOpenGPS.Core.DrawLib;
+using AgOpenGPS.Core.Kinematics;
+using AgOpenGPS.Core.Kinematics.Math;
 using AgOpenGPS.Core.Models;
 using OpenTK.Graphics.OpenGL;
 using System;
@@ -140,7 +142,8 @@ namespace AgOpenGPS
 
         public void DrawVehicle()
         {
-            GL.Rotate(glm.toDegrees(-mf.fixHeading), 0.0, 0.0, 1.0);
+            double rearHeading = mf.pivotAxlePos.heading;
+            GL.Rotate(glm.toDegrees(-rearHeading), 0.0, 0.0, 1.0);
             //mf.font.DrawText3D(0, 0, "&TGF");
             if (mf.isFirstHeadingSet && !mf.tool.isToolFrontFixed)
             {
@@ -338,6 +341,11 @@ namespace AgOpenGPS
                 };
                 GLW.DrawLineStripPrimitive(vertices);
             }
+            if (mf.ShowArticulatedDebug && mf.CurrentArticulatedKinematics is ArticulatedKinematics.Result debugKinematics)
+            {
+                DrawArticulatedDebug(debugKinematics);
+            }
+
             GL.LineWidth(1);
         }
 
@@ -353,6 +361,47 @@ namespace AgOpenGPS
             {
                 rightAckermannAngle *= 1.25;
             }
+        }
+
+        private void DrawArticulatedDebug(ArticulatedKinematics.Result kinematics)
+        {
+            const double axisLength = 0.75;
+
+            GL.PushMatrix();
+            GL.LoadIdentity();
+
+            DrawDebugTriad(kinematics.FrontFrameWorldPosition, kinematics.FrontFrameOrientation, axisLength);
+            DrawDebugTriad(kinematics.RearFrameWorldPosition, kinematics.RearFrameOrientation, axisLength);
+
+            GL.PointSize(6f);
+            GL.Begin(PrimitiveType.Points);
+            SetColor(Colors.AntennaColor);
+            GL.Vertex3(kinematics.AntennaWorldPosition.X, kinematics.AntennaWorldPosition.Y, 0);
+            SetColor(Colors.HitchColor);
+            GL.Vertex3(kinematics.DrawbarWorldPosition.X, kinematics.DrawbarWorldPosition.Y, 0);
+            GL.End();
+
+            GL.PopMatrix();
+        }
+
+        private static void DrawDebugTriad(Vector3 origin, Matrix3 orientation, double axisLength)
+        {
+            Vector3 forward = orientation * new Vector3(axisLength, 0, 0);
+            Vector3 left = orientation * new Vector3(0, axisLength, 0);
+
+            GL.Begin(PrimitiveType.Lines);
+            GL.Color3(0.9, 0.2, 0.2);
+            GL.Vertex3(origin.X, origin.Y, 0);
+            GL.Vertex3(origin.X + forward.X, origin.Y + forward.Y, 0);
+            GL.Color3(0.2, 0.9, 0.2);
+            GL.Vertex3(origin.X, origin.Y, 0);
+            GL.Vertex3(origin.X + left.X, origin.Y + left.Y, 0);
+            GL.End();
+        }
+
+        private static void SetColor(ColorRgb color)
+        {
+            GL.Color3(color.Red / 255.0, color.Green / 255.0, color.Blue / 255.0);
         }
 
     }
