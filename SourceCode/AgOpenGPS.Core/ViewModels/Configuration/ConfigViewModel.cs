@@ -11,7 +11,11 @@
 
         public void UpdateFromSettings()
         {
-            // Todo
+            if (_appModel.Settings != null)
+            {
+                IsMetric = _appModel.Settings.IsMetric;
+                IsDay = _appModel.Settings.IsDay;
+            }
         }
 
     }
