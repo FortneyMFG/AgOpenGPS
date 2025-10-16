@@ -159,8 +159,8 @@ namespace AgOpenGPS
                 ArticulationAngleRadians = glm.toRadians(articulationDegrees);
                 double halfArticulation = 0.5 * ArticulationAngleRadians;
 
-                PivotFrameHeading = NormalizeAngle(FrontFrameHeading + halfArticulation);
-                RearFrameHeading = NormalizeAngle(FrontFrameHeading + ArticulationAngleRadians);
+                PivotFrameHeading = NormalizeAngle(FrontFrameHeading - halfArticulation);
+                RearFrameHeading = NormalizeAngle(FrontFrameHeading - ArticulationAngleRadians);
             }
             else
             {
