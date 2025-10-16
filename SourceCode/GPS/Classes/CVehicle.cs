@@ -405,7 +405,7 @@ namespace AgOpenGPS
                     double frontFrameRelativeAngleDegrees = glm.toDegrees(frontFrameRelativeAngleRadians);
 
                     GL.PushMatrix();
-                    GL.Rotate(rearFrameRelativeAngleDegrees, 0, 0, 1);
+                    GL.Rotate(-rearFrameRelativeAngleDegrees, 0, 0, 1);
                     GL.Translate(0, -rearOffset, 0);
                     mf.VehicleTextures.ArticulatedRear.DrawCenteredAroundOrigin(articulated);
                     GL.PopMatrix();
@@ -417,7 +417,7 @@ namespace AgOpenGPS
                         frontOffset = VehicleConfig.Wheelbase - rearOffset;
                     }
 
-                    GL.Rotate(frontFrameRelativeAngleDegrees, 0, 0, 1);
+                    GL.Rotate(-frontFrameRelativeAngleDegrees, 0, 0, 1);
                     GL.Translate(0, frontOffset, 0);
                     mf.VehicleTextures.ArticulatedFront.DrawCenteredAroundOrigin(articulated);
                     GL.PopMatrix();

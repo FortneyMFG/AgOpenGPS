@@ -149,15 +149,12 @@ namespace AgOpenGPS
         {
             if (mf.vehicle.VehicleConfig.Type == VehicleType.Articulated)
             {
-                if (pivotToHitchLength < 0)
-                {
-                    return mf.vehicle.RearFrameHeading;
-                }
-
                 if (Math.Abs(pivotToHitchLength) < 1e-6)
                 {
                     return mf.vehicle.PivotFrameHeading;
                 }
+
+                return mf.vehicle.FrontFrameHeading;
             }
 
             return mf.vehicle.FrontFrameHeading;
