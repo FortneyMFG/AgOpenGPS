@@ -368,16 +368,8 @@ namespace AgOpenGPS
             if (mf.camera.camSetDistance > -75 && mf.isFirstHeadingSet)
             {
                 //draw the bright antenna dot
-                double axFront = VehicleConfig.AntennaPivot - pivotToFrontDistance;
-                double ayFront = VehicleConfig.AntennaOffset;
-
-                double forwardX = sinFrontHeading;
-                double forwardY = cosFrontHeading;
-                double leftX = -cosFrontHeading;
-                double leftY = sinFrontHeading;
-
-                double antennaWorldX = frontAxleX + forwardX * axFront + leftX * ayFront;
-                double antennaWorldY = frontAxleY + forwardY * axFront + leftY * ayFront;
+                double antennaWorldX = mf.antennaPos.easting;
+                double antennaWorldY = mf.antennaPos.northing;
                 XyCoord antennaLocal = TransformWorldToVehicleLocal(antennaWorldX, antennaWorldY);
 
                 PointStyle antennaBackgroundStyle = new PointStyle(16, Colors.Black);
