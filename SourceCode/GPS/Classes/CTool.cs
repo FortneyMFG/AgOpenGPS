@@ -155,8 +155,9 @@ namespace AgOpenGPS
             GL.PushMatrix();
 
             //translate down to the hitch pin
-            GL.Translate(Math.Sin(mf.fixHeading) * (hitchLength),
-                            Math.Cos(mf.fixHeading) * (hitchLength), 0);
+            double pivotHeading = mf.pivotAxlePos.heading;
+            GL.Translate(Math.Sin(pivotHeading) * (hitchLength),
+                            Math.Cos(pivotHeading) * (hitchLength), 0);
 
             //settings doesn't change trailing hitch length if set to rigid, so do it here
             double trailingTank, trailingTool;
