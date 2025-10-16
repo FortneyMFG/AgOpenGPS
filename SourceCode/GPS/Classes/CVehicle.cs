@@ -146,20 +146,47 @@ namespace AgOpenGPS
             double sinFixHeading = Math.Sin(mf.fixHeading);
             double cosFixHeading = Math.Cos(mf.fixHeading);
             double frontHeading = mf.steerAxlePos.heading;
-            double sinFrontHeading = Math.Sin(frontHeading);
-            double cosFrontHeading = Math.Cos(frontHeading);
             double frontAxleX = mf.steerAxlePos.easting;
             double frontAxleY = mf.steerAxlePos.northing;
             double pivotToFrontDistance = Math.Sqrt(
                 (frontAxleX - pivotX) * (frontAxleX - pivotX)
                 + (frontAxleY - pivotY) * (frontAxleY - pivotY));
+
+            bool isArticulated = VehicleConfig.Type == VehicleType.Articulated;
             if (glm.IsZero(pivotToFrontDistance))
             {
-                pivotToFrontDistance = VehicleConfig.Type == VehicleType.Articulated
+                double fallbackDistance = isArticulated
                     ? 0.5 * VehicleConfig.Wheelbase
                     : VehicleConfig.Wheelbase;
-                frontAxleX = pivotX + sinFrontHeading * pivotToFrontDistance;
-                frontAxleY = pivotY + cosFrontHeading * pivotToFrontDistance;
+
+                pivotToFrontDistance = Math.Abs(fallbackDistance);
+                if (!glm.IsZero(pivotToFrontDistance))
+                {
+                    frontAxleX = pivotX + Math.Sin(frontHeading) * pivotToFrontDistance;
+                    frontAxleY = pivotY + Math.Cos(frontHeading) * pivotToFrontDistance;
+                }
+            }
+
+            double sinFrontHeading = Math.Sin(frontHeading);
+            double cosFrontHeading = Math.Cos(frontHeading);
+
+            if (isArticulated)
+            {
+                double offsetDot = (frontAxleX - pivotX) * sinFrontHeading
+                    + (frontAxleY - pivotY) * cosFrontHeading;
+
+                if (offsetDot < 0.0)
+                {
+                    frontHeading = (2.0 * mf.fixHeading) - frontHeading;
+                    sinFrontHeading = Math.Sin(frontHeading);
+                    cosFrontHeading = Math.Cos(frontHeading);
+
+                    if (!glm.IsZero(pivotToFrontDistance))
+                    {
+                        frontAxleX = pivotX + sinFrontHeading * pivotToFrontDistance;
+                        frontAxleY = pivotY + cosFrontHeading * pivotToFrontDistance;
+                    }
+                }
             }
 
             XyCoord TransformWorldToVehicleLocal(double worldX, double worldY)
