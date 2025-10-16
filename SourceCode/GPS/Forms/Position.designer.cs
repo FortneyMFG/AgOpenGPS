@@ -1281,70 +1281,91 @@ namespace AgOpenGPS
         {
             #region pivot hitch trail
 
-            //translate from pivot position to steer axle and pivot axle position
             double pivotHeading = fixHeading;
             double frontHeading = pivotHeading;
             double rearHeading = pivotHeading;
+            double toolFrameHeading = pivotHeading;
 
-            if (vehicle.VehicleConfig.Type == VehicleType.Articulated)
+            bool isArticulated = vehicle.VehicleConfig.Type == VehicleType.Articulated;
+            double wheelbase = vehicle.VehicleConfig.Wheelbase;
+            double halfWheelbase = wheelbase * 0.5;
+
+            vec2 pivotVec2 = new vec2(0, 0);
+            vec2 frontAxleVec2 = new vec2(0, 0);
+            vec2 rearAxleVec2 = new vec2(0, 0);
+
+            if (isArticulated)
             {
                 double articulationDegrees = timerSim.Enabled ? sim.steerAngle : mc.actualSteerAngleDegrees;
                 double articulationRadians = glm.toRadians(articulationDegrees);
                 frontHeading = pivotHeading + 0.5 * articulationRadians;
                 rearHeading = pivotHeading - 0.5 * articulationRadians;
-            }
 
-            double antennaPivot = vehicle.VehicleConfig.AntennaPivot;
-            if (vehicle.VehicleConfig.Type == VehicleType.Articulated)
-            {
-                pivotAxlePos.easting = pn.fix.easting - (Math.Sin(frontHeading) * antennaPivot);
-                pivotAxlePos.northing = pn.fix.northing - (Math.Cos(frontHeading) * antennaPivot);
-            }
-            else
-            {
-                pivotAxlePos.easting = pn.fix.easting - (Math.Sin(pivotHeading) * antennaPivot);
-                pivotAxlePos.northing = pn.fix.northing - (Math.Cos(pivotHeading) * antennaPivot);
-            }
-            pivotAxlePos.heading = pivotHeading;
+                double dFront = halfWheelbase;
+                double dRear = halfWheelbase;
 
-            if (vehicle.VehicleConfig.Type == VehicleType.Articulated)
-            {
-                double halfWheelbase = vehicle.VehicleConfig.Wheelbase * 0.5;
-                steerAxlePos.easting = pivotAxlePos.easting + (Math.Sin(frontHeading) * halfWheelbase);
-                steerAxlePos.northing = pivotAxlePos.northing + (Math.Cos(frontHeading) * halfWheelbase);
+                vec2 antennaWorld = pn.fix;
+                double axFront = vehicle.VehicleConfig.AntennaPivot + dFront;
+                double ayFront = vehicle.VehicleConfig.AntennaOffset;
+
+                frontAxleVec2 = OffsetPoint(antennaWorld, frontHeading, -axFront, -ayFront);
+                pivotVec2 = OffsetPoint(frontAxleVec2, frontHeading, -dFront, 0.0);
+                rearAxleVec2 = OffsetPoint(pivotVec2, rearHeading, -dRear, 0.0);
+
+                pivotAxlePos.easting = pivotVec2.easting;
+                pivotAxlePos.northing = pivotVec2.northing;
+                pivotAxlePos.heading = pivotHeading;
+
+                steerAxlePos.easting = frontAxleVec2.easting;
+                steerAxlePos.northing = frontAxleVec2.northing;
                 steerAxlePos.heading = frontHeading;
 
-                rearAxlePos.easting = pivotAxlePos.easting - (Math.Sin(rearHeading) * halfWheelbase);
-                rearAxlePos.northing = pivotAxlePos.northing - (Math.Cos(rearHeading) * halfWheelbase);
+                rearAxlePos.easting = rearAxleVec2.easting;
+                rearAxlePos.northing = rearAxleVec2.northing;
                 rearAxlePos.heading = rearHeading;
+
+                vec2 hitchWorld;
+                if (tool.hitchLength >= 0)
+                {
+                    hitchWorld = OffsetPoint(frontAxleVec2, frontHeading, tool.hitchLength, 0.0);
+                    toolFrameHeading = frontHeading;
+                }
+                else
+                {
+                    double hitchBehindRear = -tool.hitchLength;
+                    hitchWorld = OffsetPoint(rearAxleVec2, rearHeading, -hitchBehindRear, 0.0);
+                    toolFrameHeading = rearHeading;
+                }
+
+                hitchPos.easting = hitchWorld.easting;
+                hitchPos.northing = hitchWorld.northing;
             }
             else
             {
+                pivotVec2.easting = pn.fix.easting - (Math.Sin(pivotHeading) * vehicle.VehicleConfig.AntennaPivot);
+                pivotVec2.northing = pn.fix.northing - (Math.Cos(pivotHeading) * vehicle.VehicleConfig.AntennaPivot);
+
+                pivotAxlePos.easting = pivotVec2.easting;
+                pivotAxlePos.northing = pivotVec2.northing;
+                pivotAxlePos.heading = pivotHeading;
+
                 steerAxlePos.easting = pivotAxlePos.easting + (Math.Sin(pivotHeading) * vehicle.VehicleConfig.Wheelbase);
                 steerAxlePos.northing = pivotAxlePos.northing + (Math.Cos(pivotHeading) * vehicle.VehicleConfig.Wheelbase);
                 steerAxlePos.heading = pivotHeading;
 
-                rearAxlePos = pivotAxlePos;
-            }
+                rearAxlePos.easting = pivotAxlePos.easting;
+                rearAxlePos.northing = pivotAxlePos.northing;
+                rearAxlePos.heading = pivotHeading;
 
-            //guidance look ahead distance based on time or tool width at least
+                vec2 hitchWorld = OffsetPoint(pivotVec2, pivotHeading, tool.hitchLength, 0.0);
+                hitchPos.easting = hitchWorld.easting;
+                hitchPos.northing = hitchWorld.northing;
+            }
 
             double guidanceLookDist = (Math.Max(tool.width * 0.5, avgSpeed * 0.277777 * guidanceLookAheadTime));
-            guidanceLookPos.easting = pivotAxlePos.easting + (Math.Sin(pivotHeading) * guidanceLookDist);
-            guidanceLookPos.northing = pivotAxlePos.northing + (Math.Cos(pivotHeading) * guidanceLookDist);
-
-
-            //determine where the rigid vehicle hitch ends
-            double hitchHeading = pivotHeading;
-            if (vehicle.VehicleConfig.Type == VehicleType.Articulated)
-            {
-                hitchHeading = tool.hitchLength >= 0 ? frontHeading : rearHeading;
-            }
-
-            hitchPos.easting = pivotAxlePos.easting + (Math.Sin(hitchHeading) * tool.hitchLength);
-            hitchPos.northing = pivotAxlePos.northing + (Math.Cos(hitchHeading) * tool.hitchLength);
-
-            double toolFrameHeading = hitchHeading;
+            vec2 guidanceLook = OffsetPoint(pivotVec2, pivotHeading, guidanceLookDist, 0.0);
+            guidanceLookPos.easting = guidanceLook.easting;
+            guidanceLookPos.northing = guidanceLook.northing;
 
             //tool attached via a trailing hitch
             if (tool.isToolTrailing)
@@ -1718,6 +1739,17 @@ namespace AgOpenGPS
                     patchCounter++;
                 }
             }
+        }
+
+        private static vec2 OffsetPoint(vec2 origin, double heading, double forward, double right)
+        {
+            double sinHeading = Math.Sin(heading);
+            double cosHeading = Math.Cos(heading);
+
+            double easting = origin.easting + (sinHeading * forward) + (cosHeading * right);
+            double northing = origin.northing + (cosHeading * forward) - (sinHeading * right);
+
+            return new vec2(easting, northing);
         }
 
         //the start of first few frames to initialize entire program

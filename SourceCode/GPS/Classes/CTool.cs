@@ -154,15 +154,10 @@ namespace AgOpenGPS
             GL.Translate(mf.pivotAxlePos.easting, mf.pivotAxlePos.northing, 0);
             GL.PushMatrix();
 
-            //translate down to the hitch pin
-            double hitchHeading = mf.fixHeading;
-            if (mf.vehicle.VehicleConfig.Type == VehicleType.Articulated)
-            {
-                hitchHeading = hitchLength >= 0 ? mf.steerAxlePos.heading : mf.rearAxlePos.heading;
-            }
-
-            GL.Translate(Math.Sin(hitchHeading) * (hitchLength),
-                            Math.Cos(hitchHeading) * (hitchLength), 0);
+            //translate down to the hitch pin using the resolved world offset
+            vec2 hitchOffset = new vec2(mf.hitchPos.easting - mf.pivotAxlePos.easting,
+                                        mf.hitchPos.northing - mf.pivotAxlePos.northing);
+            GL.Translate(hitchOffset.easting, hitchOffset.northing, 0);
 
             //settings doesn't change trailing hitch length if set to rigid, so do it here
             double trailingTank, trailingTool;
