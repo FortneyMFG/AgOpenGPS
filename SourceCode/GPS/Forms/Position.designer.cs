@@ -251,7 +251,7 @@ namespace AgOpenGPS
                                 if (gpsHeading < 0) gpsHeading += glm.twoPI;
                                 else if (gpsHeading >= glm.twoPI) gpsHeading -= glm.twoPI;
 
-                                fixHeading = gpsHeading;
+                                fixHeading = ConvertFrontHeadingToPivot(gpsHeading);
 
                                 //set the imu to gps heading offset
                                 if (ahrs.imuHeading != 99999)
@@ -535,7 +535,8 @@ namespace AgOpenGPS
                             }
 
                             //set the headings
-                            fixHeading = gpsHeading = newGPSHeading;
+                            gpsHeading = newGPSHeading;
+                            fixHeading = ConvertFrontHeadingToPivot(newGPSHeading);
                         }
 
                         //save current fix and set as valid
@@ -618,9 +619,10 @@ namespace AgOpenGPS
                         if (avgSpeed > 1)
                         {
                             //use NMEA headings for camera and tractor graphic
-                            fixHeading = glm.toRadians(pn.headingTrue);
+                            double vtgHeading = glm.toRadians(pn.headingTrue);
+                            fixHeading = ConvertFrontHeadingToPivot(vtgHeading);
+                            gpsHeading = vtgHeading;
                             camHeading = pn.headingTrue;
-                            gpsHeading = fixHeading;
                         }
 
                         //grab the most current fix to last fix distance
@@ -722,8 +724,9 @@ namespace AgOpenGPS
 
                         isFirstHeadingSet = true;
                         //use Dual Antenna heading for camera and tractor graphic
-                        fixHeading = glm.toRadians(pn.headingTrueDual);
-                        gpsHeading = fixHeading;
+                        double dualHeading = glm.toRadians(pn.headingTrueDual);
+                        fixHeading = ConvertFrontHeadingToPivot(dualHeading);
+                        gpsHeading = dualHeading;
 
                         uncorrectedEastingGraph = pn.fix.easting;
 
@@ -1759,7 +1762,12 @@ namespace AgOpenGPS
         }
         private double ConvertImuHeadingToPivot(double imuHeading)
         {
-            double heading = imuHeading;
+            return ConvertFrontHeadingToPivot(imuHeading);
+        }
+
+        private double ConvertFrontHeadingToPivot(double frontHeading)
+        {
+            double heading = frontHeading;
             if (vehicle.VehicleConfig.UseArticulatedFrameModel && vehicle.VehicleConfig.Type == VehicleType.Articulated)
             {
                 heading -= GetArticulationAngleRadians() * 0.5;
