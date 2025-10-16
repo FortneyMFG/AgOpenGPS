@@ -285,11 +285,19 @@ namespace AgOpenGPS
             }
             if (mf.camera.camSetDistance > -75 && mf.isFirstHeadingSet)
             {
-                //draw the bright antenna dot
+                //draw the bright antenna dot at the GNSS antenna world position
                 PointStyle antennaBackgroundStyle = new PointStyle(16, Colors.Black);
                 PointStyle antennaForegroundStyle = new PointStyle(10, Colors.AntennaColor);
                 PointStyle[] layerStyles = { antennaBackgroundStyle, antennaForegroundStyle };
-                GLW.DrawPointLayered(layerStyles, -VehicleConfig.AntennaOffset, VehicleConfig.AntennaPivot, 0.1);
+
+                double dx = mf.pn.fix.easting - mf.pivotAxlePos.easting;
+                double dy = mf.pn.fix.northing - mf.pivotAxlePos.northing;
+                double sinPivot = Math.Sin(mf.pivotAxlePos.heading);
+                double cosPivot = Math.Cos(mf.pivotAxlePos.heading);
+                double localForward = sinPivot * dx + cosPivot * dy;
+                double localRight = cosPivot * dx - sinPivot * dy;
+
+                GLW.DrawPointLayered(layerStyles, -localRight, localForward, 0.1);
             }
 
             if (mf.bnd.isBndBeingMade && mf.bnd.isDrawAtPivot)
