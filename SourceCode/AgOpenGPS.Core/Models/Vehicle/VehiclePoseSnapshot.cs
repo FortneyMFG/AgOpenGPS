@@ -84,33 +84,32 @@ namespace AgOpenGPS.Core.Models
             }
 
             double halfWheelbase = wheelbase * 0.5;
+            double frontYaw = pivotHeading + (articulationAngle * 0.5);
+            double rearYaw = pivotHeading - (articulationAngle * 0.5);
 
-            XyCoord frontOriginLocalPivot = new XyCoord(0, halfWheelbase);
-            XyCoord antennaLocalFront = new XyCoord(-antennaOffset, antennaPivot - halfWheelbase);
+            XyCoord pivotToAntennaLocal = new XyCoord(-antennaOffset, antennaPivot);
+            XyCoord pivotToAntennaWorld = Pose2.Rotate(frontYaw, pivotToAntennaLocal.X, pivotToAntennaLocal.Y);
 
-            XyCoord rotatedFrontOrigin = Pose2.Rotate(pivotHeading, frontOriginLocalPivot.X, frontOriginLocalPivot.Y);
-            XyCoord rotatedAntennaLocal = Pose2.Rotate(pivotHeading + articulationAngle * 0.5, antennaLocalFront.X, antennaLocalFront.Y);
-
-            double pivotX = antennaWorld.X - rotatedFrontOrigin.X - rotatedAntennaLocal.X;
-            double pivotY = antennaWorld.Y - rotatedFrontOrigin.Y - rotatedAntennaLocal.Y;
+            double pivotX = antennaWorld.X - pivotToAntennaWorld.X;
+            double pivotY = antennaWorld.Y - pivotToAntennaWorld.Y;
 
             Pose2 pivotPose = new Pose2(pivotX, pivotY, pivotHeading);
 
-            XyCoord frontOriginWorld = pivotPose.ApplyLocal(frontOriginLocalPivot.X, frontOriginLocalPivot.Y);
-            Pose2 frontPose = new Pose2(frontOriginWorld.X, frontOriginWorld.Y, pivotHeading + (articulationAngle * 0.5));
+            XyCoord pivotToFrontWorld = Pose2.Rotate(frontYaw, 0, halfWheelbase);
+            XyCoord frontWorld = new XyCoord(pivotX + pivotToFrontWorld.X, pivotY + pivotToFrontWorld.Y);
+            Pose2 frontPose = new Pose2(frontWorld.X, frontWorld.Y, frontYaw);
 
-            XyCoord rearOriginLocalPivot = new XyCoord(0, -halfWheelbase);
-            XyCoord rearOriginWorld = pivotPose.ApplyLocal(rearOriginLocalPivot.X, rearOriginLocalPivot.Y);
-            Pose2 rearPose = new Pose2(rearOriginWorld.X, rearOriginWorld.Y, pivotHeading - (articulationAngle * 0.5));
+            XyCoord pivotToRearWorld = Pose2.Rotate(rearYaw, 0, -halfWheelbase);
+            XyCoord rearWorld = new XyCoord(pivotX + pivotToRearWorld.X, pivotY + pivotToRearWorld.Y);
+            Pose2 rearPose = new Pose2(rearWorld.X, rearWorld.Y, rearYaw);
 
-            XyCoord antennaWorldComputed = frontPose.ApplyLocal(antennaLocalFront.X, antennaLocalFront.Y);
+            double hitchYaw = hitchLength >= 0 ? frontYaw : rearYaw;
+            XyCoord pivotToHitchWorld = Pose2.Rotate(hitchYaw, 0, hitchLength);
+            XyCoord hitchWorld = new XyCoord(pivotX + pivotToHitchWorld.X, pivotY + pivotToHitchWorld.Y);
 
-            XyCoord hitchLocalRear = new XyCoord(-antennaOffset, hitchLength + halfWheelbase);
-            XyCoord hitchWorld = rearPose.ApplyLocal(hitchLocalRear.X, hitchLocalRear.Y);
+            Pose2 imuPose = new Pose2(antennaWorld.X, antennaWorld.Y, frontYaw);
 
-            Pose2 imuPose = new Pose2(antennaWorldComputed.X, antennaWorldComputed.Y, frontPose.Yaw);
-
-            XyCoord pivotLocalAntenna = pivotPose.ToLocal(antennaWorldComputed.X, antennaWorldComputed.Y);
+            XyCoord pivotLocalAntenna = pivotPose.ToLocal(antennaWorld.X, antennaWorld.Y);
             XyCoord pivotLocalHitch = pivotPose.ToLocal(hitchWorld.X, hitchWorld.Y);
             XyCoord pivotLocalFrontAxle = pivotPose.ToLocal(frontPose.X, frontPose.Y);
             XyCoord pivotLocalRearAxle = pivotPose.ToLocal(rearPose.X, rearPose.Y);
@@ -120,7 +119,7 @@ namespace AgOpenGPS.Core.Models
                 frontPose,
                 rearPose,
                 imuPose,
-                antennaWorldComputed,
+                antennaWorld,
                 hitchWorld,
                 pivotLocalAntenna,
                 pivotLocalHitch,
@@ -138,8 +137,11 @@ namespace AgOpenGPS.Core.Models
             double antennaOffset,
             double hitchLength)
         {
-            double pivotX = antennaWorld.X - (Math.Sin(pivotHeading) * antennaPivot);
-            double pivotY = antennaWorld.Y - (Math.Cos(pivotHeading) * antennaPivot);
+            XyCoord pivotToAntennaLocal = new XyCoord(-antennaOffset, antennaPivot);
+            XyCoord pivotToAntennaWorld = Pose2.Rotate(pivotHeading, pivotToAntennaLocal.X, pivotToAntennaLocal.Y);
+
+            double pivotX = antennaWorld.X - pivotToAntennaWorld.X;
+            double pivotY = antennaWorld.Y - pivotToAntennaWorld.Y;
 
             Pose2 pivotPose = new Pose2(pivotX, pivotY, pivotHeading);
 
@@ -148,15 +150,13 @@ namespace AgOpenGPS.Core.Models
 
             Pose2 rearPose = pivotPose;
 
-            XyCoord antennaWorldComputed = pivotPose.ApplyLocal(-antennaOffset, antennaPivot);
-
             XyCoord hitchWorld = new XyCoord(
                 antennaWorld.X + (Math.Sin(pivotHeading) * (hitchLength - antennaPivot)),
                 antennaWorld.Y + (Math.Cos(pivotHeading) * (hitchLength - antennaPivot)));
 
-            Pose2 imuPose = new Pose2(antennaWorldComputed.X, antennaWorldComputed.Y, pivotHeading);
+            Pose2 imuPose = new Pose2(antennaWorld.X, antennaWorld.Y, pivotHeading);
 
-            XyCoord pivotLocalAntenna = pivotPose.ToLocal(antennaWorldComputed.X, antennaWorldComputed.Y);
+            XyCoord pivotLocalAntenna = pivotPose.ToLocal(antennaWorld.X, antennaWorld.Y);
             XyCoord pivotLocalHitch = pivotPose.ToLocal(hitchWorld.X, hitchWorld.Y);
             XyCoord pivotLocalFrontAxle = pivotPose.ToLocal(frontPose.X, frontPose.Y);
             XyCoord pivotLocalRearAxle = pivotPose.ToLocal(rearPose.X, rearPose.Y);
@@ -166,7 +166,7 @@ namespace AgOpenGPS.Core.Models
                 frontPose,
                 rearPose,
                 imuPose,
-                antennaWorldComputed,
+                antennaWorld,
                 hitchWorld,
                 pivotLocalAntenna,
                 pivotLocalHitch,

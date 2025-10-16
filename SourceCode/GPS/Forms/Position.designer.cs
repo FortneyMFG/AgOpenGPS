@@ -46,6 +46,7 @@ namespace AgOpenGPS
         public double CurrentArticulationAngle { get; private set; }
         public IReadOnlyList<string> VehiclePoseDebugLines { get; private set; } = Array.Empty<string>();
         private DateTime _lastPoseDebugLog = DateTime.MinValue;
+        private XyCoord _antennaWorldRaw = new XyCoord(0, 0);
 
         //history
         public vec2 prevFix = new vec2(0, 0);
@@ -198,6 +199,7 @@ namespace AgOpenGPS
                 //calculate current heading only when moving, otherwise use last
                 case "Fix":
                     {
+                        _antennaWorldRaw = new XyCoord(pn.fix.easting, pn.fix.northing);
                         #region Start
 
                         if (Properties.Settings.Default.setGPS_headingFromWhichSource == "Dual" && ahrs.autoSwitchDualFixOn)
@@ -611,6 +613,7 @@ namespace AgOpenGPS
 
                 case "VTG":
                     {
+                        _antennaWorldRaw = new XyCoord(pn.fix.easting, pn.fix.northing);
                         isFirstHeadingSet = true;
                         if (avgSpeed > 1)
                         {
@@ -710,6 +713,7 @@ namespace AgOpenGPS
 
                 case "Dual":
                     {
+                        _antennaWorldRaw = new XyCoord(pn.fix.easting, pn.fix.northing);
                         if (Properties.Settings.Default.setGPS_headingFromWhichSource == "Dual" && ahrs.autoSwitchDualFixOn)
                         {
                             lblSpeed.ForeColor = System.Drawing.Color.Green;
@@ -1293,7 +1297,7 @@ namespace AgOpenGPS
                 articulationModelEnabled,
                 fixHeading,
                 CurrentArticulationAngle,
-                new XyCoord(pn.fix.easting, pn.fix.northing),
+                _antennaWorldRaw,
                 vehicle.VehicleConfig.Wheelbase,
                 vehicle.VehicleConfig.AntennaPivot,
                 vehicle.VehicleConfig.AntennaOffset,
@@ -1714,6 +1718,7 @@ namespace AgOpenGPS
                 GeoCoord fixCoord = AppModel.LocalPlane.ConvertWgs84ToGeoCoord(AppModel.CurrentLatLon);
                 pn.fix.northing = fixCoord.Northing;
                 pn.fix.easting = fixCoord.Easting;
+                _antennaWorldRaw = new XyCoord(pn.fix.easting, pn.fix.northing);
                 //Draw a grid once we know where in the world we are.
                 isFirstFixPositionSet = true;
 
@@ -1728,6 +1733,7 @@ namespace AgOpenGPS
             else
             {
                 prevFix.easting = pn.fix.easting; prevFix.northing = pn.fix.northing;
+                _antennaWorldRaw = new XyCoord(pn.fix.easting, pn.fix.northing);
 
                 //keep here till valid data
                 if (startCounter > (20))

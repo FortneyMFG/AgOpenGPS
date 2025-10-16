@@ -25,13 +25,14 @@ The antenna is treated as a local offset from the front frame origin. `VehiclePo
 Previously, antenna offsets were applied only to the center frame, so articulated tractors left the antenna fixed at the hinge. The new hierarchy rotates the front frame by `δ/2` and translates by ±`wheelbase/2`, which keeps the antenna co-moving with the front cab both in world math and OpenGL. The helper also feeds the same coordinates to physics so GPS-to-pivot transforms stay consistent.【F:SourceCode/AgOpenGPS.Core/Models/Vehicle/VehiclePoseSnapshot.cs†L37-L118】【F:SourceCode/GPS/Forms/Position.designer.cs†L1258-L1379】
 
 #### Math sketch
-For articulation angle `δ` and wheelbase `L`:
+For articulation angle `δ`, wheelbase `L`, and front yaw `ψ_f = fixHeading + δ/2`:
 
 ```math
-frontOrigin = R(fixHeading) · \begin{bmatrix}0\\L/2\end{bmatrix}
-antennaLocal = \begin{bmatrix}-offset\\AntennaPivot - L/2\end{bmatrix}
-antennaWorld = pivot + frontOrigin + R(fixHeading + δ/2) · antennaLocal
+pivot = antennaWorld - R(ψ_f) · \begin{bmatrix}-offset\\AntennaPivot\end{bmatrix}
+frontOrigin = pivot + R(ψ_f) · \begin{bmatrix}0\\L/2\end{bmatrix}
 ```
+
+`FormGPS` captures the raw GPS fix **before** lateral-offset and roll corrections and feeds it to the calculator, so the antenna vector is derived entirely from the front-frame yaw.【F:SourceCode/GPS/Forms/Position.designer.cs†L123-L141】【F:SourceCode/AgOpenGPS.Core/Models/Vehicle/VehiclePoseSnapshot.cs†L63-L118】
 
 ### Expected behaviour
 When the front frame pivots, the antenna is translated and rotated by the front pose so it mirrors the cab swing. The same pose is published to guidance and the draw layer, eliminating divergence between physics and visuals.【F:SourceCode/GPS/Classes/CVehicle.cs†L139-L241】
@@ -48,9 +49,9 @@ The hitch is expressed as a rear-frame offset `(-antennaOffset, hitchLength + L/
 
 **Pseudocode**
 ```csharp
-rearPose = pivotPose.TranslateLocal(0, -wheelbase/2).WithYaw(fixHeading - delta/2);
-hitchLocal = new XyCoord(-antennaOffset, hitchLength + wheelbase/2);
-hitchWorld = rearPose.ApplyLocal(hitchLocal.X, hitchLocal.Y);
+double psiR = fixHeading - delta / 2.0;
+double hitchYaw = hitchLength >= 0 ? (fixHeading + delta / 2.0) : psiR;
+XyCoord hitchWorld = pivot + Pose2.Rotate(hitchYaw, 0, hitchLength);
 ```
 
 ## 5. Root Cause Analysis of Previous Problems
@@ -93,10 +94,11 @@ Key classes to review: `VehiclePoseCalculator`, `FormGPS.CalculatePositionHeadin
 ```
 ψ_f = fixHeading + δ/2
 ψ_r = fixHeading − δ/2
-frontOrigin = pivot + R(fixHeading) · [0, L/2]^T
-rearOrigin  = pivot + R(fixHeading) · [0, −L/2]^T
-antennaWorld = frontOrigin + R(ψ_f) · [−offset, AntPivot − L/2]^T
-hitchWorld   = rearOrigin  + R(ψ_r) · [−offset, Hitch + L/2]^T
+pivot = antennaWorld − R(ψ_f) · [−offset, AntPivot]^T
+frontOrigin = pivot + R(ψ_f) · [0, L/2]^T
+rearOrigin  = pivot + R(ψ_r) · [0, −L/2]^T
+hitchYaw = hitchLength ≥ 0 ? ψ_f : ψ_r
+hitchWorld = pivot + R(hitchYaw) · [0, hitchLength]^T
 ```
 
 ### Configuration
