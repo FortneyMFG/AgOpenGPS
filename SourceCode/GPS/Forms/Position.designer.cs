@@ -1269,19 +1269,18 @@ namespace AgOpenGPS
         {
             #region pivot hitch trail
 
-            double articulationDegrees = vehicle.VehicleConfig.Type == VehicleType.Articulated
-                ? (timerSim.Enabled ? sim.steerAngle : mc.actualSteerAngleDegrees)
-                : 0;
+            double articulationDegrees = vehicle.ReadArticulationDegrees();
 
             vehicle.UpdateFrameHeadings(fixHeading, articulationDegrees);
 
             double frontHeading = vehicle.FrontFrameHeading;
+            double pivotHeading = vehicle.PivotFrameHeading;
 
             //translate from pivot position to steer axle and pivot axle position
             //translate world to the pivot axle
             pivotAxlePos.easting = pn.fix.easting - (Math.Sin(frontHeading) * vehicle.VehicleConfig.AntennaPivot);
             pivotAxlePos.northing = pn.fix.northing - (Math.Cos(frontHeading) * vehicle.VehicleConfig.AntennaPivot);
-            pivotAxlePos.heading = frontHeading;
+            pivotAxlePos.heading = pivotHeading;
 
             double frontAxleOffset = vehicle.VehicleConfig.Wheelbase;
 
@@ -1297,8 +1296,8 @@ namespace AgOpenGPS
             //guidance look ahead distance based on time or tool width at least 
             
             double guidanceLookDist = (Math.Max(tool.width * 0.5, avgSpeed * 0.277777 * guidanceLookAheadTime));
-            guidanceLookPos.easting = pivotAxlePos.easting + (Math.Sin(frontHeading) * guidanceLookDist);
-            guidanceLookPos.northing = pivotAxlePos.northing + (Math.Cos(frontHeading) * guidanceLookDist);
+            guidanceLookPos.easting = pivotAxlePos.easting + (Math.Sin(pivotHeading) * guidanceLookDist);
+            guidanceLookPos.northing = pivotAxlePos.northing + (Math.Cos(pivotHeading) * guidanceLookDist);
             
 
             //determine where the rigid vehicle hitch ends
