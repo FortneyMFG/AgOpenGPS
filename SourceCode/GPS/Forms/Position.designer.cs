@@ -1271,13 +1271,32 @@ namespace AgOpenGPS
 
             //translate from pivot position to steer axle and pivot axle position
             //translate world to the pivot axle
-            pivotAxlePos.easting = pn.fix.easting - (Math.Sin(fixHeading) * vehicle.VehicleConfig.AntennaPivot);
-            pivotAxlePos.northing = pn.fix.northing - (Math.Cos(fixHeading) * vehicle.VehicleConfig.AntennaPivot);
+            bool isArticulated = vehicle.VehicleConfig.Type == VehicleType.Articulated;
+            double articulationRadians = 0;
+            double halfWheelbase = 0.5 * vehicle.VehicleConfig.Wheelbase;
+            double steerHeading = fixHeading;
+            double pivotHeadingForAntenna = fixHeading;
+            double pivotToSteerDistance = vehicle.VehicleConfig.Wheelbase;
+            double rearHeading = fixHeading;
+
+            if (isArticulated)
+            {
+                double steerAngleDegrees = timerSim.Enabled ? sim.steerAngle : mc.actualSteerAngleDegrees;
+                articulationRadians = glm.toRadians(steerAngleDegrees);
+
+                steerHeading = fixHeading + 0.5 * articulationRadians;
+                pivotHeadingForAntenna = steerHeading;
+                pivotToSteerDistance = halfWheelbase;
+                rearHeading = fixHeading - 0.5 * articulationRadians;
+            }
+
+            pivotAxlePos.easting = pn.fix.easting - (Math.Sin(pivotHeadingForAntenna) * vehicle.VehicleConfig.AntennaPivot);
+            pivotAxlePos.northing = pn.fix.northing - (Math.Cos(pivotHeadingForAntenna) * vehicle.VehicleConfig.AntennaPivot);
             pivotAxlePos.heading = fixHeading;
 
-            steerAxlePos.easting = pivotAxlePos.easting + (Math.Sin(fixHeading) * vehicle.VehicleConfig.Wheelbase);
-            steerAxlePos.northing = pivotAxlePos.northing + (Math.Cos(fixHeading) * vehicle.VehicleConfig.Wheelbase);
-            steerAxlePos.heading = fixHeading;
+            steerAxlePos.easting = pivotAxlePos.easting + (Math.Sin(steerHeading) * pivotToSteerDistance);
+            steerAxlePos.northing = pivotAxlePos.northing + (Math.Cos(steerHeading) * pivotToSteerDistance);
+            steerAxlePos.heading = steerHeading;
 
             //guidance look ahead distance based on time or tool width at least 
             
@@ -1289,9 +1308,13 @@ namespace AgOpenGPS
             //determine where the rigid vehicle hitch ends
             double hitchLengthFromPivot = tool.GetHitchLengthFromVehiclePivot();
             double hitchHeading = tool.GetHitchHeadingFromVehiclePivot(hitchLengthFromPivot);
-            double hitchDistanceFromAntenna = hitchLengthFromPivot - vehicle.VehicleConfig.AntennaPivot;
-            hitchPos.easting = pn.fix.easting + (Math.Sin(hitchHeading) * hitchDistanceFromAntenna);
-            hitchPos.northing = pn.fix.northing + (Math.Cos(hitchHeading) * hitchDistanceFromAntenna);
+            double hitchTranslationHeading = hitchHeading;
+            if (isArticulated && hitchLengthFromPivot <= 0)
+            {
+                hitchTranslationHeading = rearHeading;
+            }
+            hitchPos.easting = pivotAxlePos.easting + (Math.Sin(hitchTranslationHeading) * hitchLengthFromPivot);
+            hitchPos.northing = pivotAxlePos.northing + (Math.Cos(hitchTranslationHeading) * hitchLengthFromPivot);
 
             //tool attached via a trailing hitch
             if (tool.isToolTrailing)
