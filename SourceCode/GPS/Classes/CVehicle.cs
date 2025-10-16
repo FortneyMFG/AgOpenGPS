@@ -51,7 +51,6 @@ namespace AgOpenGPS
             VehicleConfig = new VehicleConfig();
 
             VehicleConfig.AntennaHeight = Properties.Settings.Default.setVehicle_antennaHeight;
-            VehicleConfig.AntennaPivot = Properties.Settings.Default.setVehicle_antennaPivot;
             VehicleConfig.AntennaOffset = Properties.Settings.Default.setVehicle_antennaOffset;
 
             VehicleConfig.Wheelbase = Properties.Settings.Default.setVehicle_wheelbase;
@@ -81,39 +80,7 @@ namespace AgOpenGPS
             purePursuitIntegralGain = Properties.Settings.Default.purePursuitIntegralGainAB;
             VehicleConfig.Type = (VehicleType)Properties.Settings.Default.setVehicle_vehicleType;
 
-            if (VehicleConfig.Type == VehicleType.Articulated)
-            {
-                if (VehicleConfig.PivotToFrontAxle <= 0 && VehicleConfig.PivotToRearAxle <= 0)
-                {
-                    double halfWheelbase = 0.5 * VehicleConfig.Wheelbase;
-                    VehicleConfig.PivotToFrontAxle = halfWheelbase;
-                    VehicleConfig.PivotToRearAxle = halfWheelbase;
-                }
-
-                VehicleConfig.Wheelbase = VehicleConfig.PivotToFrontAxle + VehicleConfig.PivotToRearAxle;
-
-                if (VehicleConfig.AntennaPivotFromFrontAxle <= 0)
-                {
-                    double inferredFrontOffset = Properties.Settings.Default.setVehicle_antennaPivot - VehicleConfig.PivotToFrontAxle;
-
-                    if (inferredFrontOffset > 0)
-                    {
-                        VehicleConfig.AntennaPivotFromFrontAxle = inferredFrontOffset;
-                    }
-                    else
-                    {
-                        VehicleConfig.AntennaPivotFromFrontAxle = 0;
-                    }
-                }
-
-                VehicleConfig.AntennaPivot = VehicleConfig.PivotToFrontAxle + VehicleConfig.AntennaPivotFromFrontAxle;
-            }
-            else
-            {
-                VehicleConfig.PivotToFrontAxle = VehicleConfig.Wheelbase;
-                VehicleConfig.PivotToRearAxle = 0;
-                VehicleConfig.AntennaPivotFromFrontAxle = 0;
-            }
+            NormalizeVehicleGeometry();
 
             hydLiftLookAheadTime = Properties.Settings.Default.setVehicle_hydraulicLiftLookAhead;
 
@@ -149,6 +116,97 @@ namespace AgOpenGPS
         public double ArticulationAngleRadians { get; private set; }
 
         public double ArticulationAngleDegrees => glm.toDegrees(ArticulationAngleRadians);
+
+        private void NormalizeVehicleGeometry()
+        {
+            if (VehicleConfig.Type == VehicleType.Articulated)
+            {
+                NormalizeArticulatedGeometry();
+                return;
+            }
+
+            double wheelbase = VehicleConfig.Wheelbase;
+            if (wheelbase <= 0)
+            {
+                wheelbase = Math.Max(1.0, Properties.Settings.Default.setVehicle_wheelbase);
+            }
+
+            VehicleConfig.Wheelbase = wheelbase;
+            VehicleConfig.PivotToFrontAxle = wheelbase;
+            VehicleConfig.PivotToRearAxle = 0;
+            VehicleConfig.AntennaPivot = Properties.Settings.Default.setVehicle_antennaPivot;
+            VehicleConfig.AntennaPivotFromFrontAxle = 0;
+        }
+
+        private void NormalizeArticulatedGeometry()
+        {
+            double front = VehicleConfig.PivotToFrontAxle;
+            double rear = VehicleConfig.PivotToRearAxle;
+
+            if (front <= 0 && rear <= 0)
+            {
+                double wheelbase = VehicleConfig.Wheelbase > 0
+                    ? VehicleConfig.Wheelbase
+                    : Math.Max(2.0, Properties.Settings.Default.setVehicle_wheelbase);
+
+                double half = wheelbase * 0.5;
+                front = half;
+                rear = half;
+            }
+            else
+            {
+                if (front <= 0)
+                {
+                    front = Math.Max(0.01, VehicleConfig.Wheelbase - rear);
+                }
+
+                if (rear <= 0)
+                {
+                    rear = Math.Max(0.01, VehicleConfig.Wheelbase - front);
+                }
+            }
+
+            double totalWheelbase = front + rear;
+            if (totalWheelbase <= 0)
+            {
+                totalWheelbase = Math.Max(2.0, Properties.Settings.Default.setVehicle_wheelbase);
+                front = rear = totalWheelbase * 0.5;
+            }
+
+            VehicleConfig.PivotToFrontAxle = front;
+            VehicleConfig.PivotToRearAxle = rear;
+            VehicleConfig.Wheelbase = totalWheelbase;
+
+            double pivotFromFront = VehicleConfig.AntennaPivotFromFrontAxle;
+            if (pivotFromFront < 0)
+            {
+                pivotFromFront = 0;
+            }
+
+            if (pivotFromFront == 0)
+            {
+                double legacyPivot = Properties.Settings.Default.setVehicle_antennaPivot;
+                double inferredFrontOffset = legacyPivot - front;
+                if (inferredFrontOffset > 0)
+                {
+                    pivotFromFront = inferredFrontOffset;
+                }
+            }
+
+            VehicleConfig.AntennaPivotFromFrontAxle = pivotFromFront;
+            VehicleConfig.AntennaPivot = front + pivotFromFront;
+        }
+
+        private double GetCurrentArticulationDegrees()
+        {
+            double rawDegrees = mf.timerSim.Enabled ? mf.sim.steerAngle : mf.mc.actualSteerAngleDegrees;
+            return double.IsNaN(rawDegrees) ? 0.0 : rawDegrees;
+        }
+
+        public double ReadArticulationDegrees()
+        {
+            return VehicleConfig.Type == VehicleType.Articulated ? GetCurrentArticulationDegrees() : 0.0;
+        }
 
         public void UpdateFrameHeadings(double frontHeading, double articulationDegrees)
         {
@@ -209,7 +267,7 @@ namespace AgOpenGPS
         public void DrawVehicle()
         {
             double articulationDegrees = VehicleConfig.Type == VehicleType.Articulated
-                ? (mf.timerSim.Enabled ? mf.sim.steerAngle : mf.mc.actualSteerAngleDegrees)
+                ? GetCurrentArticulationDegrees()
                 : 0;
 
             UpdateFrameHeadings(mf.fixHeading, articulationDegrees);
@@ -347,7 +405,7 @@ namespace AgOpenGPS
                     double frontFrameRelativeAngleDegrees = glm.toDegrees(frontFrameRelativeAngleRadians);
 
                     GL.PushMatrix();
-                    GL.Rotate(rearFrameRelativeAngleDegrees, 0, 0, 1);
+                    GL.Rotate(-rearFrameRelativeAngleDegrees, 0, 0, 1);
                     GL.Translate(0, -rearOffset, 0);
                     mf.VehicleTextures.ArticulatedRear.DrawCenteredAroundOrigin(articulated);
                     GL.PopMatrix();
@@ -359,7 +417,7 @@ namespace AgOpenGPS
                         frontOffset = VehicleConfig.Wheelbase - rearOffset;
                     }
 
-                    GL.Rotate(frontFrameRelativeAngleDegrees, 0, 0, 1);
+                    GL.Rotate(-frontFrameRelativeAngleDegrees, 0, 0, 1);
                     GL.Translate(0, frontOffset, 0);
                     mf.VehicleTextures.ArticulatedFront.DrawCenteredAroundOrigin(articulated);
                     GL.PopMatrix();

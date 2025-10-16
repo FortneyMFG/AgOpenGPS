@@ -147,15 +147,14 @@ namespace AgOpenGPS
 
         public double GetHitchHeadingFromVehiclePivot(double pivotToHitchLength)
         {
-            double articulationDegrees = mf.vehicle.VehicleConfig.Type == VehicleType.Articulated
-                ? (mf.timerSim.Enabled ? mf.sim.steerAngle : mf.mc.actualSteerAngleDegrees)
-                : 0;
-
-            mf.vehicle.UpdateFrameHeadings(mf.fixHeading, articulationDegrees);
-
-            if (mf.vehicle.VehicleConfig.Type == VehicleType.Articulated && pivotToHitchLength < 0)
+            if (mf.vehicle.VehicleConfig.Type == VehicleType.Articulated)
             {
-                return mf.vehicle.RearFrameHeading;
+                if (Math.Abs(pivotToHitchLength) < 1e-6)
+                {
+                    return mf.vehicle.PivotFrameHeading;
+                }
+
+                return mf.vehicle.FrontFrameHeading;
             }
 
             return mf.vehicle.FrontFrameHeading;
