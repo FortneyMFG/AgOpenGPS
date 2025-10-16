@@ -77,6 +77,8 @@ namespace AgOpenGPS.Forms.Config
             }
 
             UpdateImage();
+            chkUseArticulatedFrameModel.Checked = _vehicleConfig.UseArticulatedFrameModel;
+            chkUseArticulatedFrameModel.Visible = _vehicleConfig.Type == VehicleType.Articulated;
         }
 
         public void UpdateSettings()
@@ -100,6 +102,7 @@ namespace AgOpenGPS.Forms.Config
             Settings.Default.setDisplay_isVehicleImage = _vehicleConfig.IsImage;
             Settings.Default.setDisplay_vehicleOpacity = (int)(_vehicleConfig.Opacity * 100);
             Settings.Default.setDisplay_colorVehicle = (Color)_vehicleConfig.Color;
+            Settings.Default.setVehicle_useArticulatedFrameModel = _vehicleConfig.UseArticulatedFrameModel;
         }
 
         private void UpdateImage()
@@ -107,6 +110,7 @@ namespace AgOpenGPS.Forms.Config
             panelArticulatedBrands.Visible = false;
             panelTractorBrands.Visible = false;
             panelHarvesterBrands.Visible = false;
+            chkUseArticulatedFrameModel.Visible = false;
 
             if (_vehicleConfig.IsImage)
             {
@@ -130,6 +134,7 @@ namespace AgOpenGPS.Forms.Config
 
                     ArticulatedBrand = Settings.Default.setBrand_WDBrand;
                     UpdateArticulatedBrand();
+                    chkUseArticulatedFrameModel.Visible = true;
                 }
 
                 Settings.Default.setDisplay_vehicleOpacity = (int)(_vehicleConfig.Opacity * 100);
@@ -143,6 +148,11 @@ namespace AgOpenGPS.Forms.Config
 
             cboxIsImage.Checked = !_vehicleConfig.IsImage;
             ResetImage();
+        }
+
+        private void chkUseArticulatedFrameModel_CheckedChanged(object sender, EventArgs e)
+        {
+            _vehicleConfig.UseArticulatedFrameModel = chkUseArticulatedFrameModel.Checked;
         }
 
         private void UpdateTractorBrand()
