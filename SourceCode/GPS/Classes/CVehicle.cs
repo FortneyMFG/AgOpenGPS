@@ -145,6 +145,49 @@ namespace AgOpenGPS
             double pivotY = mf.pivotAxlePos.northing;
             double sinFixHeading = Math.Sin(mf.fixHeading);
             double cosFixHeading = Math.Cos(mf.fixHeading);
+            double frontHeading = mf.steerAxlePos.heading;
+            double frontAxleX = mf.steerAxlePos.easting;
+            double frontAxleY = mf.steerAxlePos.northing;
+            double pivotToFrontDistance = Math.Sqrt(
+                (frontAxleX - pivotX) * (frontAxleX - pivotX)
+                + (frontAxleY - pivotY) * (frontAxleY - pivotY));
+
+            bool isArticulated = VehicleConfig.Type == VehicleType.Articulated;
+            if (glm.IsZero(pivotToFrontDistance))
+            {
+                double fallbackDistance = isArticulated
+                    ? 0.5 * VehicleConfig.Wheelbase
+                    : VehicleConfig.Wheelbase;
+
+                pivotToFrontDistance = Math.Abs(fallbackDistance);
+                if (!glm.IsZero(pivotToFrontDistance))
+                {
+                    frontAxleX = pivotX + Math.Sin(frontHeading) * pivotToFrontDistance;
+                    frontAxleY = pivotY + Math.Cos(frontHeading) * pivotToFrontDistance;
+                }
+            }
+
+            double sinFrontHeading = Math.Sin(frontHeading);
+            double cosFrontHeading = Math.Cos(frontHeading);
+
+            if (isArticulated)
+            {
+                double offsetDot = (frontAxleX - pivotX) * sinFrontHeading
+                    + (frontAxleY - pivotY) * cosFrontHeading;
+
+                if (offsetDot < 0.0)
+                {
+                    frontHeading = (2.0 * mf.fixHeading) - frontHeading;
+                    sinFrontHeading = Math.Sin(frontHeading);
+                    cosFrontHeading = Math.Cos(frontHeading);
+
+                    if (!glm.IsZero(pivotToFrontDistance))
+                    {
+                        frontAxleX = pivotX + sinFrontHeading * pivotToFrontDistance;
+                        frontAxleY = pivotY + cosFrontHeading * pivotToFrontDistance;
+                    }
+                }
+            }
 
             XyCoord TransformWorldToVehicleLocal(double worldX, double worldY)
             {
@@ -158,9 +201,11 @@ namespace AgOpenGPS
             //mf.font.DrawText3D(0, 0, "&TGF");
             if (mf.isFirstHeadingSet && !mf.tool.isToolFrontFixed)
             {
+                double hitchFrontX = pivotX;
+                double hitchFrontY = pivotY;
                 double hitchRearX = mf.hitchPos.easting;
                 double hitchRearY = mf.hitchPos.northing;
-                XyCoord hitchFrontLocal = new XyCoord(0, 0);
+                XyCoord hitchFrontLocal = TransformWorldToVehicleLocal(hitchFrontX, hitchFrontY);
                 XyCoord hitchRearLocal = TransformWorldToVehicleLocal(hitchRearX, hitchRearY);
 
                 XyCoord[] vertices;
@@ -323,20 +368,13 @@ namespace AgOpenGPS
             if (mf.camera.camSetDistance > -75 && mf.isFirstHeadingSet)
             {
                 //draw the bright antenna dot
-                double frontAxleX = mf.steerAxlePos.easting;
-                double frontAxleY = mf.steerAxlePos.northing;
-                double frontHeading = mf.steerAxlePos.heading;
-
-                double pivotToFrontDistance = Math.Sqrt(
-                    (frontAxleX - pivotX) * (frontAxleX - pivotX)
-                    + (frontAxleY - pivotY) * (frontAxleY - pivotY));
                 double axFront = VehicleConfig.AntennaPivot - pivotToFrontDistance;
                 double ayFront = VehicleConfig.AntennaOffset;
 
-                double forwardX = Math.Sin(frontHeading);
-                double forwardY = Math.Cos(frontHeading);
-                double leftX = -Math.Cos(frontHeading);
-                double leftY = Math.Sin(frontHeading);
+                double forwardX = sinFrontHeading;
+                double forwardY = cosFrontHeading;
+                double leftX = -cosFrontHeading;
+                double leftY = sinFrontHeading;
 
                 double antennaWorldX = frontAxleX + forwardX * axFront + leftX * ayFront;
                 double antennaWorldY = frontAxleY + forwardY * axFront + leftY * ayFront;
