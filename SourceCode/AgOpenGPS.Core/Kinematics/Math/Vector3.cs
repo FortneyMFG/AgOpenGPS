@@ -1,4 +1,4 @@
-using System;
+using SystemMath = System.Math;
 
 namespace AgOpenGPS.Core.Kinematics.Math
 {
@@ -44,7 +44,7 @@ namespace AgOpenGPS.Core.Kinematics.Math
 
         public double Length()
         {
-            return Math.Sqrt(LengthSquared());
+            return SystemMath.Sqrt(LengthSquared());
         }
 
         public override string ToString()

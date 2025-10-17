@@ -1,4 +1,4 @@
-using System;
+using SystemMath = System.Math;
 
 namespace AgOpenGPS.Core.Kinematics.Math
 {
@@ -6,8 +6,8 @@ namespace AgOpenGPS.Core.Kinematics.Math
     {
         public static Matrix3 Rz(double angle)
         {
-            double cos = Math.Cos(angle);
-            double sin = Math.Sin(angle);
+            double cos = SystemMath.Cos(angle);
+            double sin = SystemMath.Sin(angle);
 
             return new Matrix3(
                 cos, -sin, 0,
