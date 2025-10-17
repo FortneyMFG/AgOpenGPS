@@ -1,4 +1,4 @@
-using System;
+using SystemMath = System.Math;
 
 namespace AgOpenGPS.Core.Kinematics.Math
 {
@@ -32,6 +32,6 @@ namespace AgOpenGPS.Core.Kinematics.Math
                 matrix.M31 * vector.X + matrix.M32 * vector.Y + matrix.M33 * vector.Z);
         }
 
-        public double Yaw => Math.Atan2(M21, M11);
+        public double Yaw => SystemMath.Atan2(M21, M11);
     }
 }
